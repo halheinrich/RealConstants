@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TargetFramework, LangVersion, Nullable, ImplicitUsings, analyzer settings
+    and XML doc generation all come from Directory.Build.props.
+  -->
+  <PropertyGroup>
+    <RootNamespace>HalHeinrich.Numerics</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    RationalApproximation by ProjectReference, per the umbrella's ruling on
+    intra-umbrella edges. The path escapes this repository: it resolves only
+    when this checkout sits beside a RationalApproximation checkout, which must
+    itself sit beside a BigRationalLibrary checkout, as they all do inside the
+    umbrella. BigRational arrives transitively through this one edge rather
+    than being referenced again here - a second, direct reference to it would
+    be a second place to keep the same decision, and the transitive one already
+    puts every BigRational type in scope. See README.md - Building.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\RationalApproximation\RationalApproximation\RationalApproximation.csproj" />
+  </ItemGroup>
+
+</Project>

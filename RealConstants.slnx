@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="RealConstants.Tests/RealConstants.Tests.csproj" />
+  <Project Path="RealConstants/RealConstants.csproj" />
+</Solution>
