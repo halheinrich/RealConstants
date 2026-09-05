@@ -36,23 +36,30 @@ rather than at a later review.
 
 - **BigRationalLibrary** — `HalHeinrich.Numerics.BigRational`, the exact
   rational every value and every bound is computed in. Used for its arithmetic
-  and comparison operators, `Abs`, `Zero`, and the `(BigInteger, BigInteger)`
-  constructor.
+  and comparison operators, `Abs`, `Zero`, `Pow`, and the
+  `(BigInteger, BigInteger)` constructor; and `IntegerMath.Sqrt` with
+  `IntegerSqrtRounding`, which the square-root provider needs for its starting
+  iterate and for its rational lower bound on the root.
 
   Reached **transitively**, through the reference above rather than by a second
-  direct one. A checkout therefore needs all three repositories as siblings even
-  though only one reference is written here.
+  direct one — `IntegerMath` included. That was measured rather than inferred
+  from the reference graph: a throwaway call to `IntegerMath.Sqrt` was compiled
+  here before any second reference was considered, and it resolved. A checkout
+  therefore needs all three repositories as siblings even though only one
+  reference is written here.
 
 ## Layout
 
 - **`RealConstants`** — the library. One public type per constant-and-method
-  pair; no shared series machinery between them, deliberately (see
-  § Architecture).
+  pair, except where one method covers a family of constants and is
+  parameterised instead — `NewtonSquareRoot` takes its radicand. No shared
+  series machinery between the pi pair, deliberately (see § Architecture).
 - **`RealConstants.Tests`** — xUnit. Also holds the oracles the providers are
   checked against, which are part of the design rather than scaffolding:
-  `PiReference` (an external value, itself checked), `SkewedPi` (the negative
-  control that makes the cross-check falsifiable) and `Enclosures` (the
-  predicates on pairs of enclosures that `Approximation` does not carry).
+  `PiReference` (an external value, itself checked), `SquareRootReference` (a
+  computed one, self-verified), `SkewedPi` (the negative control that makes the
+  cross-check falsifiable) and `Enclosures` (the predicates on pairs of
+  enclosures that `Approximation` does not carry).
 
 ## Architecture
 
@@ -62,20 +69,23 @@ and stated in the type's XML documentation in a form a reader can check. It is
 never measured from a run and never estimated from observed convergence. A
 provider that cannot bound its truncation does not ship.
 
-### Both providers, one shape
+### Every provider, one shape
 
 Each implements `IRealConstant` with two members. `ErrorBoundAt(step)` is pure,
 non-increasing, tends to zero, and — the point of the member — is computable
 without doing the step's work, so a run can be planned before it is paid for.
 `Refinements()` is lazy, endless, strictly improving and incremental.
 
-Neither type re-declares `StepFor` or `ApproximateTo`. Those are default
-interface members, which C# does not surface on an implementing type, so a
-caller holding a `MachinPi` cannot see them and must hold the interface. That is
-a consequence of the contract's wording, not an omission to be worked around.
+No type re-declares `StepFor` or `ApproximateTo`. Those are default interface
+members, which C# does not surface on an implementing type, so a caller holding
+a `MachinPi` cannot see them and must hold the interface. That is a consequence
+of the contract's wording, not an omission to be worked around.
 
-Both are stateless, so an instance is shareable and thread-safe, and each call
-to `Refinements()` returns an independent sequence.
+All are stateless once constructed, so an instance is shareable and
+thread-safe, and each call to `Refinements()` returns an independent sequence.
+The pi pair's constructor is the implicit parameterless one;
+`NewtonSquareRoot`'s takes the radicand, validates it, and computes everything
+its bound depends on there — two integer square roots and no iteration.
 
 ### The alternating-series bound
 
@@ -93,6 +103,29 @@ brackets — and `MachinPi` refers to it rather than restating it.
 inequality over `4*(4*A - B)` gives `16/(5^m * m) + 4/(239^m * m)`. Both series
 and both scalings are in there; see § Pitfalls for the two ways that goes wrong.
 
+### The Newton bound
+
+Newton's method supplies no remainder term, so `NewtonSquareRoot` constructs
+its bounds rather than quoting one — and constructs two, by different routes.
+The argument is written out in the type's XML documentation; what matters here
+is its shape and the one substitution it turns on.
+
+From `x₀ = ⌈√c⌉` the iterates stay above the root and strictly descend, because
+completing the square gives `x_(n+1) − √c = (x_n − √c)² / (2·x_n)` and a
+non-square `c` keeps `x_n² > c` at every step. Both bounds divide by something
+no larger than the root, so both need a rational `r` with `0 < r ≤ √c`. It is
+`√c` truncated to 32 fractional bits, from `IntegerMath.Sqrt` on a scaled
+integer: at or below `√c` because a floor is, and within `2⁻³²` of it because
+that floor is above `√c·2³² − 1`. Both directions are load-bearing.
+
+Each refinement then carries the **realised** bound `(x_n² − c)/(x_n + r)`,
+read off the iterate it already holds, so it costs no part of the next step.
+`ErrorBoundAt` returns the **planned** one, the closed form `2r·W^(2ⁿ)` with
+`W = (x₀ − r)/(2r)`, which never looks at an iterate — that is the member's
+whole point, and `W < 1` for every radicand the type accepts. The realised
+bound never exceeds the planned one, so a step chosen from `ErrorBoundAt`
+delivers at least what it promised.
+
 ### Why the two providers share no code
 
 `LeibnizPi` is the arctangent series at `x = 1`, so one internal helper could
@@ -106,6 +139,14 @@ distinguishes from the same rule encoded twice.
 `LeibnizPi` is additionally the control in the sense of `../VISION.md`
 § Guiding principles: its product is trust, so it stays short enough to audit by
 reading and is not to be made faster.
+
+`NewtonSquareRoot` is the other side of that same rule and looks at first like
+a breach of it: one type serves both `√2` and `√3`, differing only in the
+radicand. Those are two *constants*, though, not two providers of one constant,
+and § 4's ruling forbids only the latter sharing an engine. Splitting the type
+in two would encode a single decision twice, which `../AGENTS.md` § Writing
+code forbids just as squarely. Neither root has a cross-check partner, so there
+is no independence here for a shared engine to compromise.
 
 ### The three kinds of test, and why none is sufficient alone
 
@@ -129,6 +170,16 @@ refinements displaced by a stated amount with the bounds left untouched. It is a
 knowingly wrong provider and exists so that a passing cross-check means the
 predicate could have failed.
 
+**`NewtonSquareRoot` has only the last two of the three**, and nothing about it
+should be read as a cross-check. There is no second square-root provider and
+§ 4 asks for none. `SquareRootReference` is an oracle rather than a partner: it
+takes `IntegerMath.Sqrt` on a radicand scaled by `2^2048`, and it is grounded
+by asserting that the integer it returns brackets that scaled radicand between
+two consecutive squares — two multiplications a reader can check, rather than
+trust in `IntegerMath`. The attempted violations are halving the claimed bound,
+refuted at every step checked, and building the bound from a value *above* the
+root rather than below, refuted at every step by a margin the reference sees.
+
 ## Public API
 
 ```csharp
@@ -145,12 +196,23 @@ public sealed class MachinPi : IRealConstant
     public BigRational ErrorBoundAt(int step);          // 16/(5^m*m) + 4/(239^m*m)
     public IEnumerable<Approximation> Refinements();    //   where m = 2*step+3
 }
+
+public sealed class NewtonSquareRoot : IRealConstant
+{
+    public NewtonSquareRoot(BigInteger radicand);       // >= 2, and not a square
+    public BigInteger Radicand { get; }
+    public BigRational ErrorBoundAt(int step);          // 2r * W^(2^step)
+    public IEnumerable<Approximation> Refinements();
+}
 ```
 
-Both constructors are the implicit parameterless one. Both `ErrorBoundAt`
-overloads throw `ArgumentOutOfRangeException` on a negative step;
-`MachinPi.ErrorBoundAt` additionally throws when `2*step+3` would overflow
-`int`, which no reachable target error can provoke.
+The pi pair's constructors are the implicit parameterless one;
+`NewtonSquareRoot`'s throws `ArgumentOutOfRangeException` on a radicand below
+two or on a perfect square. Every `ErrorBoundAt` throws
+`ArgumentOutOfRangeException` on a negative step. `MachinPi`'s additionally
+throws when `2*step+3` would overflow `int`, which no reachable target error
+can provoke; `NewtonSquareRoot`'s throws above step 30, where the closed form's
+exponent `2^step` stops fitting an `int`.
 
 `StepFor(BigRational)` and `ApproximateTo(BigRational)` come from
 `IRealConstant` as default interface members and are reachable only through an
@@ -197,6 +259,24 @@ interface-typed reference.
   banned for being untrackably inaccurate even where it would be accurate
   enough.
 
+- **A square-root bound's rational stand-in for `√c` must come from below.**
+  Both of `NewtonSquareRoot`'s bounds divide by it, so a value *above* the root
+  shrinks the quotient and the bound stops holding — at step 0, by about
+  `2e-12` for `√2`. `IntegerMath.Sqrt`'s `Floor` mode is the correct one and
+  `Ceiling` is a silent defect: it builds a plausible-looking bound that fails
+  only against a reference finer than `2⁻³²`. A test constructs the wrong-side
+  bound explicitly and asserts it fails.
+
+- **`NewtonSquareRoot.ErrorBoundAt` is cheap only in relative terms.** Its
+  closed form squares a rational `step` times, so it is a *factor* cheaper than
+  the step — which does that and a division and an addition at every one — not
+  an order cheaper. Nothing could do better: a bound of magnitude `10^(-k·2ⁿ)`
+  needs about `2ⁿ` bits however it is reached. The guard at step 30 is where the
+  exponent stops fitting an `int`; memory runs out well before it. And because
+  the defaulted `StepFor` brackets by doubling, a target needing step `n`
+  evaluates the bound at a step below `2n`, so it can hit the guard while the
+  answer sits well inside it. Targets to about `1e-44000` are unaffected.
+
 - **`Refinements()` is endless.** Every consumer and every test takes a finite
   prefix. A `foreach` without a `Take` does not terminate.
 
@@ -207,10 +287,10 @@ interface-typed reference.
 
 ## Subproject-internal next steps
 
-- **The remaining providers.** Newton for the square roots, on
-  `IntegerMath.Sqrt`; Apéry and Borwein for the target. Each is a cross-check
-  pair or a negative control in `../SPEC-rational-ratio.md` § 4, and each
-  follows the shape set here.
+- **The remaining providers.** Apéry and Borwein for the target, which is
+  `../SPEC-rational-ratio.md` § 4's second cross-check pair. The square roots
+  landed with `NewtonSquareRoot`, so one pair is what is left, and it follows
+  the shape set here.
 
 - **No `Experiments` project, deliberately.** Runs with no known answer are not
   tests and do not belong in this repository at all; § 4 places them in `Zeta`.

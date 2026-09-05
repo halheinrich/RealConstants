@@ -40,6 +40,33 @@ Both are alternating series with strictly decreasing terms, so the remainder is
 bounded in absolute value by the first omitted term. That is the whole proof,
 and each provider's XML documentation states it in a form a reader can check.
 
+### √2 and √3, by Newton's method
+
+One provider, **`NewtonSquareRoot`**, taking the radicand — not a type per
+root. Two types differing only in a constant would be one rule written twice,
+and the independence ruling that keeps `LeibnizPi` and `MachinPi` apart governs
+two providers of the *same* constant, which these are not. The iteration is
+`x ↦ (x + c/x)/2` from `x₀ = ⌈√c⌉`, in exact rationals; the iterates stay above
+the root and descend to it, roughly squaring the accuracy at every step.
+
+Newton hands you no remainder term the way an alternating series does, so the
+bound is built rather than quoted — and two are, by different routes. Each
+refinement carries `(xₙ² − c)/(xₙ + r)`, read off the iterate it already holds.
+`ErrorBoundAt(n)` instead returns the closed form `2r·W^(2ⁿ)`, where
+`W = (x₀ − r)/(2r)`, and never looks at an iterate at all; that is what lets a
+run be planned before it is paid for. Both need a rational **lower** bound
+`r ≤ √c`, because both divide by something no larger than the root, and `r` is
+`√c` truncated to 32 fractional bits by `IntegerMath.Sqrt` on a scaled integer.
+Take `r` from the wrong side and the bound stops holding at step 0, which is a
+test here rather than a remark.
+
+There is **no cross-check partner** for this provider, and none is implied. The
+design names cross-check pairs for π and for ζ(3) and names none for square
+roots. The tests ground it on an oracle instead — `IntegerMath.Sqrt` at about
+three hundred decimal places, self-verified by two integer multiplications —
+which is weaker evidence than a second provider would give, and is described
+that way rather than dressed up.
+
 ## Projects
 
 - `RealConstants` — main library
