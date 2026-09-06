@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TargetFramework, LangVersion, Nullable, ImplicitUsings, analyzer settings
+    and XML doc generation all come from Directory.Build.props.
+
+    This is a runnable project, not a test project, and the distinction is
+    ruled rather than stylistic. ../AGENTS.md § Exactness discipline: a target
+    with a known answer belongs in a test project and gates CI; a long run that
+    prints a table has no pass or fail and must not masquerade as a test. What
+    lives here depends on wall-clock time, which a test may not.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HalHeinrich.Numerics.Experiments</RootNamespace>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      Same reasoning as the test project's. GenerateDocumentationFile is
+      inherited as true because it is IDE0005's documented prerequisite, and
+      CS1591 is suppressed because experiment methods are named rather than
+      documented - halheinrich/Math#43.
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RealConstants\RealConstants.csproj" />
+  </ItemGroup>
+
+</Project>
