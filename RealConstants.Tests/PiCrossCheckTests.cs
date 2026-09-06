@@ -33,7 +33,7 @@ public class PiCrossCheckTests
 
     /// <summary>Machin at step 20, moved off pi by the given amount with its bound left alone.</summary>
     private static Approximation Displaced(BigRational offset) =>
-        new SkewedPi(offset).Refinements().Skip(20).First();
+        new DisplacedConstant(new MachinPi(), offset).Refinements().Skip(20).First();
 
     [Fact]
     public void EveryPairingOfTheTwoProvidersOverlaps()
