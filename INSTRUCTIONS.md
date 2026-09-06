@@ -50,18 +50,24 @@ rather than at a later review.
 
 ## Layout
 
-- **`RealConstants`** — the library. One public type per constant-and-method
-  pair, except where one method covers a family of constants and is
-  parameterised instead — `NewtonSquareRoot` takes its radicand. No shared
-  series machinery between the pi pair, deliberately (see § Architecture).
+- **`RealConstants`** — the library. One public type per constant-and-**method**,
+  with the *constant* a parameter where one method covers a family:
+  `NewtonSquareRoot` takes its radicand, the three zeta types take their order.
+  The method is never a parameter, which is § 4's ruling — see § Why a
+  cross-check pair shares no code.
 - **`RealConstants.Tests`** — xUnit. Also holds the oracles the providers are
   checked against, which are part of the design rather than scaffolding:
   `PiReference` (an external value, itself checked), `SquareRootReference` (a
-  computed one, self-verified), `ZetaThreeReference` (both at once — typed digits
-  for depth, the defining series for independence), `DisplacedConstant` (the
-  negative control that makes a cross-check falsifiable, for any constant) and
-  `Enclosures` (the predicates on pairs of enclosures that `Approximation` does
-  not carry).
+  computed one, self-verified), `ZetaReference` (typed digits for four orders,
+  checked from two sides), `DisplacedConstant` (the negative control that makes
+  a cross-check falsifiable, for any constant), `EulerMaclaurin` (the same
+  formula at an explicitly chosen truncation, so a test can enter the region the
+  provider refuses to) and `Enclosures` (the predicates on pairs of enclosures
+  that `Approximation` does not carry).
+- **`RealConstants.Experiments`** — a runnable project, not a test one. It
+  prints tables, has no pass or fail, and depends on wall-clock time, all of
+  which `../AGENTS.md` § Exactness discipline forbids a test. See
+  § The experiments project.
 
 ## Architecture
 
@@ -85,18 +91,17 @@ of the contract's wording, not an omission to be worked around.
 
 All are stateless once constructed, so an instance is shareable and
 thread-safe, and each call to `Refinements()` returns an independent sequence.
-Every constructor is the implicit parameterless one except
-`NewtonSquareRoot`'s, which takes the radicand, validates it, and computes
-everything its bound depends on there — two integer square roots and no
-iteration.
+The pi pair's constructors are the implicit parameterless one; the other four
+take the constant they serve — a radicand or an order — and validate it there.
 
-**Incremental is a per-scheme claim, not a blanket one.** Four of the five
-refinements build on the last in full: a running partial sum, running powers, a
-Newton iterate, a running binomial coefficient. `BorweinZetaThree` cannot, and
-says so — its weights depend on the depth, so the recombination is redone every
-step and reaching step *n* is quadratic. That is a property of acceleration
-rather than of the implementation, and it is stated at the type rather than left
-in a profile.
+**Incremental is a per-scheme claim, not a blanket one.** Most refinements build
+on the last in full: a running partial sum, running powers, a Newton iterate, a
+running binomial coefficient. Two cannot, and both say so. `BorweinZetaThree`'s
+Chebyshev weights depend on the depth, and `EulerMaclaurinZeta`'s correction
+count grows with `N`, so in each the recombination is redone every step and
+reaching step *n* is quadratic. That is a property of acceleration rather than
+of an implementation, and it is stated at the type rather than left in a
+profile.
 
 ### The alternating-series bound
 
@@ -139,14 +144,18 @@ delivers at least what it promised.
 
 ### The two zeta(3) bounds, which are not each other's shape
 
-`AperyZetaThree` is alternating, so it reuses the same remainder estimate the pi
-pair does — but the estimate needs its hypothesis. From
+`CentralBinomialZeta(3)` is alternating, so it reuses the same remainder
+estimate the pi pair does — but the estimate needs its hypothesis. From
 `C(2k+2,k+1) = C(2k,k)·2(2k+1)/(k+1)`, consecutive terms are in the ratio
 `k³/(2(k+1)²(2k+1))`, whose denominator expands to `4k³ + 10k² + 8k + 2`. That
 exceeds `4k³` for every `k ≥ 1`, so the ratio is strictly below `1/4` and one
 inequality settles both obligations: the terms strictly decrease, and they tend
 to zero at least geometrically. Step *n* omits the term at `k = n+2`, and the
 `5/2` in front scales the bound as well as the value.
+
+(That inequality is stated for `s = 3` here because it is where the zeta(3)
+pair needs it. It holds for the whole central-binomial family and is proved in
+§ The three zeta methods once, not twice.)
 
 `BorweinZetaThree` gets no tail estimate at all, and its bound comes from
 approximation theory. The full derivation is at the type; the load-bearing step
@@ -165,7 +174,7 @@ bound up is always permitted, so this is sound — but it decides what a
 falsification test can honestly assert, and § The three kinds of test says what
 that turns out to be.
 
-### Why the two providers share no code
+### Why a cross-check pair shares no code
 
 `LeibnizPi` is the arctangent series at `x = 1`, so one internal helper could
 serve both, and it would look like the right refactor. It is not. The pair
@@ -197,6 +206,65 @@ is no independence here for a shared engine to compromise.
 provider's values while leaving its bound alone is a *single* decision serving
 both pairs, so one type is right and a copy per constant would be the defect.
 The test is why the code would be the same, not whether it looks the same.
+
+### The three zeta methods, and the trap they exist to avoid
+
+**zeta(2n) is a rational multiple of pi^(2n).** So a provider computing zeta(2)
+as `π²/6` makes `π²/ζ(2)` exactly 6 by construction, and § 4's positive control
+tests arithmetic rather than the bench. **No even-zeta provider here refers to
+π, directly or transitively** — that is the constraint the three methods below
+were chosen under, not a property they happen to have.
+
+**`CentralBinomialZeta(s)`, s ∈ {2, 3, 4}.** `ζ(s) = c_s·Σ (±)1/(kˢ·C(2k,k))`
+with `c_s` of 3, 5/2 and 36/17, the middle one alternating. One inequality
+carries the family: consecutive terms are in the ratio
+`kˢ/((k+1)^(s−1)·2(2k+1))`, and `(k+1)^(s−1) ≥ k^(s−1)` puts the denominator at
+or above `4kˢ + 2k^(s−1)`, so the ratio is below `1/4` for every `k ≥ 1` and
+every `s ≥ 2`. Positive, strictly decreasing and geometric, all three from that
+one line. The alternating member's bound is the first omitted term; the two
+positive members' is that times `4/3`, the geometric tail they dominate. Each
+keeps the tighter shape it has earned rather than both being flattened for
+symmetry. **The family stops at s = 4** — `ζ(6)` over that sum is `2.02385…`,
+no rational coefficient, measured — and the guard carries that fact.
+
+**`EulerMaclaurinZeta(s)`, s ≥ 2.** The only route to `ζ(6)` and the second
+route for 2 and 4, which is what makes the even controls genuine pairs. See
+§ The Euler-Maclaurin bound.
+
+**`DirectSumZeta(s)`, s ≥ 2.** `Σ 1/kˢ` with the tail bracketed between
+integrals of `x^-s`: `(N+1)^(1−s)/(s−1) < tail < N^(1−s)/(s−1)`, two lines from
+the monotonicity of `x^-s` and nothing cited. It is the obviously-correct slow
+implementation `../AGENTS.md` § Exactness discipline asks to sit beside the
+fast ones — **its only product is trust and it is not to be optimised**, which
+its own documentation says. Its measured cost is in § Pitfalls.
+
+### The Euler-Maclaurin bound, and what a step had to be
+
+The formula with its integral remainder is cited; the bound on that remainder
+is derived here. The remainder integrates the periodic Bernoulli function
+against `f^(2M)`; that function is bounded by `|B_2M|`, because replacing every
+cosine in its Fourier series by one gives its value at zero; pulling the maximum
+out leaves an integral that evaluates exactly, to
+`(|B_2M|/(2M)!)·(s)_(2M−1)·N^(1−s−2M)` — **the magnitude of the last term
+included**. The bound is a term already computed, and estimates nothing.
+
+**The series in M is asymptotic and turns.** At `N = 10` the realised error
+improves to about `1.0e−27` at `M = 30` and worsens to `1.8e−15` by `M = 65`.
+So a step may **not** grow M: it would report a shrinking bound over a growing
+error, which is the one failure this bench exists to make impossible. A test
+pins the turn rather than trusting the constraint, and a second pins the other
+half — growing N at fixed M never turns.
+
+**A step grows N, and M is chosen rather than scheduled.** At each `N` the type
+takes the `M` minimising the proven bound. That is not a heuristic, and it makes
+the contract's monotonicity obligation two lines instead of a measurement:
+`E(N+1, M*(N+1)) ≤ E(N+1, M*(N)) < E(N, M*(N))`, the first because `M*(N+1)`
+minimises at `N+1`, the second because `E ∝ N^(1−s−2M)` falls in `N` at fixed
+`M`. Tending to zero follows from the same second fact.
+
+About **2.75 decimal digits a step**, measured 2.746 at s = 2, 4 and 6 alike,
+which is `log₁₀(e^2π)` — the classical accuracy of an optimally truncated
+Euler-Maclaurin, and the fastest provider here.
 
 ### The three kinds of test, and why none is sufficient alone
 
@@ -242,14 +310,38 @@ bound fails at once; dropping Borwein's `4/3` from the *value* fails at once;
 dropping Borwein's `4/3` from the *bound* does not fail at all, so that test
 asserts the factor is present and says why it must be — see § Pitfalls.
 
-**The zeta(3) oracle has two forms because neither alone is enough.**
-`ZetaThreeReference` carries the expansion truncated at sixty places, checked by
-two independent deep enclosures the way `PiReference` is checked by one. It also
-carries `FromDefinition(n)`, which encloses ζ(3) from `Σ 1/k³` with the tail
-bracketed by integrals of `x^-3` — `1/(2(N+1)²) < tail < 1/(2N²)`, elementary
-because `x^-3` decreases. That reaches only about nine places, but it shares
-nothing with either provider, so it fixes the leading digits without the mild
-circularity of a string and a provider vouching for each other.
+**The zeta oracle is checked from two sides because neither alone is enough.**
+`ZetaReference` carries the expansion truncated at sixty places for `s` in 2, 3,
+4 and 6, checked by two independent deep enclosures the way `PiReference` is
+checked by one. Beneath it sits `DirectSumZeta`, which encloses ζ(s) from the
+definition with a proven tail bracket and no identity, coefficient or
+acceleration anywhere in it. That reaches only nine or ten places, but it shares
+nothing with any fast provider, so it fixes the leading digits without the mild
+circularity of a string and a provider vouching for each other. It was a test
+fixture until this arc; a provider is its right home, and the fixture is gone.
+
+**The even controls are pairs, and ζ(6) is not.** `CentralBinomialZeta` and
+`EulerMaclaurinZeta` cross-check at `s = 2` and `s = 4`, which is what makes
+§ 4's positive controls genuine pairs rather than lone providers. The
+central-binomial family has no `s = 6` member, so what stands behind ζ(6) is
+Euler-Maclaurin against direct summation — a third opinion of very different
+depth, and a test says so out loud rather than letting the even controls read as
+uniformly paired.
+
+**Their tolerances are lopsided by an order or two**, more than the zeta(3)
+pair's. The central-binomial series at even `s` is all-positive, so its partial
+sum sits below ζ(s) by nearly its whole claimed bound while Euler-Maclaurin sits
+close to centred: at the tightest pairing the two thresholds differ by a factor
+of 131 at `s = 2` and 58 at `s = 4`. Both are asserted, along with a
+displacement caught in one direction only.
+
+**And the controls' own premise is a test here**, not in `Zeta`:
+`π²/ζ(2) = 6`, `π⁴/ζ(4) = 90` and `π⁶/ζ(6) = 945`, through `MachinPi`,
+`Approximation.Pow` and the propagated division of § 2 — the same path the
+pipeline will take. If it failed there instead, that session would audit correct
+wiring. The propagated half-width comes out under `1e-55`, so each control also
+refutes its neighbours, and a further test swaps the three targets between
+orders to show the assertions can fail together.
 
 **`NewtonSquareRoot` has only the last two of the three**, and nothing about it
 should be read as a cross-check. There is no second square-root provider and
@@ -286,28 +378,52 @@ public sealed class NewtonSquareRoot : IRealConstant
     public IEnumerable<Approximation> Refinements();
 }
 
-public sealed class AperyZetaThree : IRealConstant
-{
-    public BigRational ErrorBoundAt(int step);          // (5/2)/(k^3*C(2k,k)),
-    public IEnumerable<Approximation> Refinements();    //   where k = step + 2
-}
-
 public sealed class BorweinZetaThree : IRealConstant
 {
     public BigRational ErrorBoundAt(int step);          // (4/3)/T_m(3),
     public IEnumerable<Approximation> Refinements();    //   where m = step + 1
 }
+
+public sealed class CentralBinomialZeta : IRealConstant
+{
+    public CentralBinomialZeta(int order);              // s in {2, 3, 4}
+    public int Order { get; }
+    public BigRational ErrorBoundAt(int step);          // c_s/(k^s*C(2k,k)) at
+    public IEnumerable<Approximation> Refinements();    //   k = step+2, times
+}                                                       //   4/3 unless alternating
+
+public sealed class EulerMaclaurinZeta : IRealConstant
+{
+    public EulerMaclaurinZeta(int order);               // s >= 2
+    public int Order { get; }
+    public BigRational ErrorBoundAt(int step);          // least over M of
+    public IEnumerable<Approximation> Refinements();    //   |B_2M/(2M)! *
+}                                                       //   (s)_(2M-1) *
+                                                        //   N^(1-s-2M)|, N=step+2
+
+public sealed class DirectSumZeta : IRealConstant
+{
+    public DirectSumZeta(int order);                    // s >= 2
+    public int Order { get; }
+    public BigRational ErrorBoundAt(int step);          // half the tail bracket
+    public IEnumerable<Approximation> Refinements();    //   at N = step + 1
+}
 ```
 
-Every constructor is the implicit parameterless one except
-`NewtonSquareRoot`'s, which throws `ArgumentOutOfRangeException` on a radicand
-below two or on a perfect square. Every `ErrorBoundAt` throws
-`ArgumentOutOfRangeException` on a negative step. Two add an upper guard and
-three do not. `MachinPi`'s throws when `2*step+3` would overflow `int`, which no
-reachable target error can provoke; `NewtonSquareRoot`'s throws above step 30,
-where the closed form's exponent `2^step` stops fitting an `int`. The zeta(3)
-pair needs neither, because the step index enters only as `step + 2` and
-`step + 1`, both carried in a `long`.
+The pi pair's constructors are the implicit parameterless one. The other four
+throw `ArgumentOutOfRangeException` on a constant they cannot serve:
+`NewtonSquareRoot` on a radicand below two or a perfect square,
+`CentralBinomialZeta` on any order but 2, 3 and 4, and the other two on an order
+below two.
+
+Every `ErrorBoundAt` throws `ArgumentOutOfRangeException` on a negative step.
+Two add an upper guard and four do not. `MachinPi`'s throws when `2*step+3`
+would overflow `int`, which no reachable target error can provoke;
+`NewtonSquareRoot`'s throws above step 30, where the closed form's exponent
+`2^step` stops fitting an `int`. The four zeta providers need neither, because
+the step index enters only as `step + 1` or `step + 2`, carried in a `long` —
+which is deliberate, since a guard is a step a bracketing `StepFor` can
+overshoot.
 
 `StepFor(BigRational)` and `ApproximateTo(BigRational)` come from
 `IRealConstant` as default interface members and are reachable only through an
@@ -391,6 +507,36 @@ interface-typed reference.
   the square. That is halheinrich/Math#53, and the zeta(3) pair is evidence the
   default is right for ordinary shapes rather than evidence it needs changing.
 
+- **No even-zeta provider may reach ζ(s) through π.** `ζ(2n)` is a rational
+  multiple of `π^(2n)`, so a provider defined that way makes `π^(2n)/ζ(2n)`
+  exact by construction and turns § 4's positive controls into tautologies —
+  they would pass on any value of π whatever. This is the single constraint the
+  three zeta methods were chosen under. It is easy to violate in good faith,
+  because `π²/6` is the first thing anyone writes for ζ(2).
+
+- **A step may not grow Euler-Maclaurin's correction count.** That series is
+  asymptotic: at `N = 10` the error improves to about `1e−27` by `M = 30` and
+  worsens to `1.8e−15` by `M = 65`. A step growing `M` would report a shrinking
+  bound over a growing error. The step grows `N`, `M` is chosen as the bound's
+  minimiser, and a test pins the turn — the constraint is mechanical rather than
+  remembered.
+
+- **Direct summation's ceiling is the denominator, not the term count.** In
+  exact rationals the partial sum carries `lcm(1..N)`, which grows exponentially
+  in `N`. Measured: ζ(2) reaches about `1e−8` in 12951 steps and 37 kilobits
+  before ten seconds are up, and never gets near `1e−10`. Steps and seconds are
+  proxies for that; bits is the thing itself, which is why the experiments
+  project has a bit-length stop rule.
+
+- **What a falsification test may claim differs by provider, and the tests say
+  which.** The central-binomial bound is tight enough that a *tenth* of it is
+  refuted at every step; Euler-Maclaurin's is tight to a factor of two, so
+  halving it is refuted at some steps and not others and the tests use two
+  fifths; direct summation's half-width overstates its realised error
+  increasingly, so halving is refuted only in the first few steps of the larger
+  orders. Writing "halving the bound fails" as a blanket claim would be false
+  three times over.
+
 - **`Refinements()` is endless.** Every consumer and every test takes a finite
   prefix. A `foreach` without a `Take` does not terminate.
 
@@ -399,15 +545,58 @@ interface-typed reference.
   cheap and a few hundred thousand is not. `StepFor` is the way to ask how deep
   a target would be without paying for it.
 
+## The experiments project
+
+`RealConstants.Experiments` is runnable and has no pass or fail. It follows
+`Collatz.Experiments`: `OutputType` `Exe`, `IsPackable` false, named experiments
+with `list` and `--help`, exit 2 on an unknown name.
+
+- **`compare`** walks all three zeta methods to a set of error targets, at every
+  order each reaches, and records steps, seconds, the bound attained, the
+  denominator bit-length and which stop rule fired.
+- **`step <method> <s>`** is the interactive walk — one step at a time, so the
+  algorithms can be felt rather than summarised. `Enter` takes one step, a
+  number takes that many, `r` runs to a stop rule, `q` quits.
+
+**Four stop rules, and a run reports which fired**: steps, wall-clock,
+denominator bit-length, and the user quitting. All are configurable at the top
+of `Runner.cs`. A run that stops is recorded as *what was observed* — "did not
+finish within 10 s" — never as a verdict about the method. Direct summation
+stops in most cells; that is the expected result and the reason it is in the
+table.
+
+**Nothing here may reach the library.** Every figure the stepper prints is
+derivable from `ErrorBoundAt`, `Refinements()` and an oracle, so there is no
+`IRealConstant` change and no diagnostic hook on any provider. Putting an
+experiment's convenience into a ratified contract is the edit to refuse.
+Everything downstream holds the interface and never a concrete type, which is
+what keeps a comparison a comparison.
+
+**Decimals live in `Presentation.cs` and nowhere else.** § Exactness discipline
+permits formatting at presentation and bans floating point upstream of it; the
+conversion is exact truncation of an exact rational in integers, and the one
+`double` in the repository estimates a magnitude for a column heading.
+
+**`Console.IsInputRedirected` guards the prompt**, so a piped or scripted run
+falls through to the stop rules and prints a line saying the pause was skipped.
+Both branches were exercised: under a pipe the skip path fires and runs to the
+time rule; under a real pty the interactive path fires, emits one row and blocks
+on its prompt. What is **not** exercised is the interpretation of what is typed
+— no route was found to deliver keystrokes into a pty from a scripted session.
+
 ## Subproject-internal next steps
 
-- **Every provider `../SPEC-rational-ratio.md` § 4 names now exists.** Both
-  cross-check pairs and the negative control's two roots. Nothing here is
-  waiting on another provider; what comes next consumes these rather than adding
-  to them, and lives in `Zeta`.
+- **Every provider `../SPEC-rational-ratio.md` § 4 names now exists**, the even
+  positive controls included. Nothing here waits on another provider; what comes
+  next consumes these rather than adding to them, and lives in `Zeta`.
 
-- **No `Experiments` project, deliberately.** Runs with no known answer are not
-  tests and do not belong in this repository at all; § 4 places them in `Zeta`.
+- **The `Experiments` project is for cost, not for answers.** The earlier note
+  here said this repository would have none, on the grounds that runs with no
+  known answer belong to `Zeta`. That reasoning stands and this project does not
+  contradict it: nothing here searches for an unknown answer. What it measures
+  is what a method *costs* to reach a known one, which is equally not a test —
+  it has no pass or fail and it depends on wall-clock time. The ζ(5) and ζ(7)
+  runs remain `Zeta`'s.
 
 - **A provider whose bound is only conditional** would have to say so in its XML
   documentation, at the member. None here is conditional; the first one that is

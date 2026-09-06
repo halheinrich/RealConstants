@@ -72,11 +72,11 @@ that way rather than dressed up.
 The target, and the second cross-check pair. Neither bound is the π pair's
 alternating-series remainder, and the two are not the same shape as each other:
 
-- **`AperyZetaThree`** — `ζ(3) = (5/2)·Σ (−1)^(k−1)/(k³·C(2k,k))`, published by
-  Hjortnaes in 1953 and the series Apéry used in 1978. This one *is*
-  alternating, so the remainder estimate is available — but only once the terms
-  are shown positive and strictly decreasing, which is the part that gets done
-  rather than assumed. About 0.64 decimal digits per step.
+- **`CentralBinomialZeta(3)`** — `ζ(3) = (5/2)·Σ (−1)^(k−1)/(k³·C(2k,k))`,
+  published by Hjortnaes in 1953 and the series Apéry used in 1978. This one
+  *is* alternating, so the remainder estimate is available — but only once the
+  terms are shown positive and strictly decreasing, which is the part that gets
+  done rather than assumed. About 0.64 decimal digits per step.
 - **`BorweinZetaThree`** — not a truncated series at all. A weighted
   recombination of `1/1³ … 1/m³` whose weights come from the Chebyshev
   polynomial `T_m(2x−1)`, with a bound from approximation theory rather than
@@ -106,10 +106,49 @@ step 0 to about 0.009 by step 39. Loose is permitted and short is not — but it
 limits what a falsification test may claim, and the tests assert the limit rather
 than papering over it.
 
+### ζ(2), ζ(4) and ζ(6) — and the trap that shapes them
+
+These are the positive controls: `π²/ζ(2) = 6`, `π⁴/ζ(4) = 90`,
+`π⁶/ζ(6) = 945`. Which is exactly why **no provider here may reach ζ(2n)
+through π**. ζ(2n) *is* a rational multiple of π^(2n), so a provider computing
+ζ(2) as `π²/6` makes the control exact by construction — it would pass on any
+value of π whatever, and test nothing. Every method below reaches ζ(s) from
+reciprocal powers and integer recurrences, and π appears nowhere in them.
+
+- **`CentralBinomialZeta(s)`**, `s ∈ {2, 3, 4}` — the family ζ(3) already
+  belonged to, with coefficients 3, 5/2 and 36/17. One inequality carries all
+  three: consecutive terms are in the ratio `kˢ/((k+1)^(s−1)·2(2k+1))`, below
+  `1/4` for every `k ≥ 1` and `s ≥ 2`, which makes the terms positive, strictly
+  decreasing *and* geometric in one line. The alternating member's bound is the
+  first omitted term; the positive members' is that times `4/3`. **The family
+  stops at s = 4** — ζ(6) over that sum is `2.02385…`, no rational coefficient,
+  measured — and the guard says so.
+- **`EulerMaclaurinZeta(s)`**, `s ≥ 2` — the only route to ζ(6) and the second
+  route for 2 and 4, so the even controls get genuine cross-check pairs. About
+  2.75 digits per step, the fastest provider here.
+- **`DirectSumZeta(s)`**, `s ≥ 2` — `Σ 1/kˢ` with the tail bracketed between
+  integrals of `x^-s`. Hopeless as a workhorse and **deliberately not
+  optimised**: it is the obviously-correct slow implementation whose only
+  product is trust.
+
+Euler-Maclaurin's bound is the magnitude of the last correction term included,
+which follows in three elementary steps from the classical remainder integral:
+the periodic Bernoulli function is bounded by `|B_2M|`, pulling that maximum out
+leaves an integral that evaluates exactly, and the result is a term already
+computed. **Its series in M is asymptotic and turns** — at `N = 10` the error
+improves to `1e−27` by `M = 30` and worsens to `1.8e−15` by `M = 65` — so a
+step grows `N` and never `M`, and `M` is chosen at each `N` as the minimiser of
+the proven bound. That choice is what makes the bound's monotonicity a two-line
+argument rather than an observation, and a test pins the turn.
+
 ## Projects
 
 - `RealConstants` — main library
 - `RealConstants.Tests` — xUnit tests
+- `RealConstants.Experiments` — runnable comparisons, **not** tests: they print
+  tables, have no pass or fail, and depend on wall-clock time. `compare` walks
+  every zeta method to a set of error targets and reports which stop rule fired;
+  `step <method> <s>` walks one method interactively, a step at a time.
 
 ## Building
 
