@@ -37,7 +37,15 @@ internal static class InteractiveWalk
         StopRules rules = StopRules.Default;
         (Approximation oracle, string oracleDescription) = Methods.Oracle(order, method);
 
-        Console.Error.WriteLine($"stepping {method} at s={order}");
+        Methods.Note? note = Methods.Describe(method);
+
+        Console.Error.WriteLine($"computing zeta({order}) by {note?.Summary ?? method}");
+        Console.Error.WriteLine($"  {Methods.Identity(method, order)}");
+        if (note is not null)
+        {
+            Console.Error.WriteLine($"  {note.StepMeaning}; {note.Cadence}   [{note.Provider}]");
+        }
+
         Console.Error.WriteLine($"  oracle: {oracleDescription}, half-width {Presentation.Magnitude(oracle.MaxError)}");
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s, {rules.MaxDenominatorBits} denominator bits"));

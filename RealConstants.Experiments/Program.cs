@@ -64,7 +64,28 @@ internal static class Program
         Console.Error.WriteLine("                     order it reaches; steps, seconds, bound and stop rule");
         Console.Error.WriteLine("  step <method> <s>  walk one method one step at a time");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("  methods: " + string.Join(", ", Methods.Names));
-        Console.Error.WriteLine("  orders:  central 2-4, euler 2+, direct 2+");
+        Console.Error.WriteLine("what can be computed");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  the constant is zeta(s), Riemann zeta at an integer s >= 2. Which s is");
+        Console.Error.WriteLine("  available depends on the method:");
+        Console.Error.WriteLine();
+
+        foreach (Methods.Note note in Methods.Catalogue)
+        {
+            Console.Error.WriteLine($"  {note.Name} - {note.Summary}   [{note.Provider}]");
+            Console.Error.WriteLine($"      orders   s = {note.Orders}");
+            Console.Error.WriteLine($"      identity {Methods.Identity(note.Name, 0)}");
+            Console.Error.WriteLine($"      step     {note.StepMeaning}");
+            Console.Error.WriteLine($"      cadence  {note.Cadence}");
+            Console.Error.WriteLine();
+        }
+
+        Console.Error.WriteLine("  zeta(2), zeta(4) and zeta(6) are the positive controls: pi^2/zeta(2) = 6,");
+        Console.Error.WriteLine("  pi^4/zeta(4) = 90, pi^6/zeta(6) = 945. No method here reaches zeta(s)");
+        Console.Error.WriteLine("  through pi, which is what keeps those controls from being tautologies.");
+        Console.Error.WriteLine("  The central-binomial family stops at s = 4: zeta(6) over that sum is");
+        Console.Error.WriteLine("  2.02385..., with no rational coefficient.");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  examples:  step euler 6        step central 3        compare");
     }
 }
