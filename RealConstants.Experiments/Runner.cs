@@ -20,6 +20,16 @@ internal enum StopReason
 
     /// <summary>The user asked to stop. Only reachable from the interactive walk.</summary>
     UserQuit,
+
+    /// <summary>
+    /// The bound became finer than the oracle, so nothing further can be measured.
+    /// </summary>
+    /// <remarks>
+    /// Only reachable from the interactive walk. <see cref="MethodComparison"/> walks to fixed
+    /// targets that its oracle depths are chosen to stay well ahead of, and a cell there that did
+    /// go past reports it in the realised columns without ending the row.
+    /// </remarks>
+    OracleLimit,
 }
 
 /// <summary>The stop rules every walk is subject to, and the outcome of one walk.</summary>
@@ -61,6 +71,9 @@ internal sealed record WalkResult(int Steps, Approximation Reached, TimeSpan Ela
         StopReason.TimeLimit => $"did not finish within {rules.MaxSeconds:F0} s",
         StopReason.SizeLimit => $"did not finish within {rules.MaxDenominatorBits} bits",
         StopReason.UserQuit => "stopped by the user",
+        StopReason.OracleLimit =>
+            "the bound is finer than the oracle, so there is nothing further to read - "
+            + "raise this constant's oracle depth in Catalogue.Constants to go deeper",
         _ => "unknown",
     };
 }

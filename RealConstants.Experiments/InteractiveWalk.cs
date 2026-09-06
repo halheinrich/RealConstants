@@ -97,7 +97,8 @@ internal static class InteractiveWalk
         Console.Error.WriteLine(
             $"  oracle: {oracleDescription}, half-width {Presentation.Magnitude(oracle.MaxError)}");
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s, {rules.MaxDenominatorBits} denominator bits"));
+            $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s, " +
+            $"{rules.MaxDenominatorBits} denominator bits, or a bound finer than that oracle"));
 
         bool interactive = !Console.IsInputRedirected;
         if (interactive)
@@ -164,6 +165,17 @@ internal static class InteractiveWalk
 
             previousDigits = digits;
             step++;
+
+            // The fifth stop rule, and the one this walk hits first on a converging method. Past
+            // here every remaining column is fixed: realised and its ratio read "past oracle", and
+            // the value column has already reached its cap, so the rows are identical and endless.
+            // A run of zeta:3/central produced them to step 4565 before this existed. Nothing was
+            // wrong with any of them; there was just nothing left to read.
+            if (!resolved)
+            {
+                reason = StopReason.OracleLimit;
+                break;
+            }
 
             if (step >= rules.MaxSteps)
             {
@@ -396,14 +408,14 @@ internal static class InteractiveWalk
         }
 
         Console.Error.WriteLine();
-        Console.Error.WriteLine("    realised and its ratio read \"past oracle\" once this walk is finer than");
-        Console.Error.WriteLine("    the oracle, because from there the oracle cannot resolve the error");
+        Console.Error.WriteLine("    realised and its ratio read \"past oracle\" on the last row of a walk that");
+        Console.Error.WriteLine("    outran its oracle, because from there the oracle cannot resolve the error");
         Console.Error.WriteLine();
         Console.Error.WriteLine("    a single us reading is noisy at this scale - read the trend, not the row");
         Console.Error.WriteLine();
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s computing, " +
-            $"{rules.MaxDenominatorBits} denominator bits"));
+            $"{rules.MaxDenominatorBits} denominator bits, or a bound finer than the oracle"));
         Console.Error.WriteLine("  the pause does not count toward the time rule, and h costs no step");
         Console.Error.WriteLine();
     }
