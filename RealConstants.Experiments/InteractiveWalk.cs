@@ -68,9 +68,24 @@ internal static class InteractiveWalk
         int step = 0;
         StopReason reason = StopReason.StepLimit;
 
-        foreach (Approximation refinement in constant.Refinements())
+        // The enumerator is driven by hand rather than by `foreach`, so that `perStep` can
+        // bracket MoveNext() and nothing else. Under `foreach` the refinement is computed
+        // before the body is entered, so a timer started in the body measures the oracle
+        // subtraction and the decimal rendering instead of the step - measured 2026-09-05 on a
+        // redirected central s=2 run, where the column summed to 6.80 s of a 10.00 s walk and
+        // the 3.20 s it omitted was the stepping the column exists to show.
+        using IEnumerator<Approximation> refinements = constant.Refinements().GetEnumerator();
+
+        while (true)
         {
             perStep.Restart();
+            if (!refinements.MoveNext())
+            {
+                throw new InvalidOperationException("Refinements() ended, which the contract forbids.");
+            }
+
+            Approximation refinement = refinements.Current;
+            TimeSpan stepCost = perStep.Elapsed;
 
             // The realised error is only known to within the oracle's own half-width, so it is
             // reported as the largest it could be. An oracle far finer than the bound makes that
@@ -85,7 +100,7 @@ internal static class InteractiveWalk
                 $"{Presentation.Magnitude(refinement.MaxError)} | {Presentation.Magnitude(realised)} | " +
                 $"{Presentation.Ratio(realised, refinement.MaxError)} | {digits:F1} | " +
                 $"{digits - previousDigits:F2} | {Runner.DenominatorBits(refinement)} | " +
-                $"{perStep.Elapsed.TotalMilliseconds:F1}"));
+                $"{stepCost.TotalMilliseconds:F1}"));
 
             previousDigits = digits;
             step++;
@@ -217,13 +232,13 @@ internal static class InteractiveWalk
     [
         ("step", "zero-based index into Refinements()"),
         ("value", "the enclosure's centre, truncated to 40 decimal places"),
-        ("claimed", "ErrorBoundAt(step) - the proven bound, not the error"),
+        ("claimed", "MaxError - the proven bound this enclosure carries, not its error"),
         ("realised", "|value - oracle| widened by the oracle's own half-width"),
-        ("realised/claimed", "how much of the claimed bound the error actually uses"),
+        ("realised/claimed", "upper bound on how much of the claimed bound the error uses"),
         ("digits", "-log10(claimed): decimal places the bound guarantees"),
         ("gained", "digits won by this step alone"),
         ("den_bits", "bit-length of the larger denominator the enclosure carries"),
-        ("ms", "wall-clock for this step alone"),
+        ("ms", "wall-clock to compute this refinement, rendering excluded"),
     ];
 
     /// <summary>Writes the help screen to standard error, so redirected data stays clean.</summary>
