@@ -4,8 +4,8 @@ using System.Globalization;
 namespace HalHeinrich.Numerics.Experiments;
 
 /// <summary>
-/// The interactive walk: one method, one order, one step at a time, so the algorithm can be felt
-/// rather than summarised.
+/// The interactive walk: one constant, one method, one step at a time, so the algorithm can be
+/// felt rather than summarised.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,28 +25,42 @@ internal static class InteractiveWalk
     /// <summary>How many decimal places the value column shows.</summary>
     private const int ValuePlaces = 40;
 
-    public static int Walk(string method, int order)
+    /// <summary>Walks one method for one constant.</summary>
+    /// <param name="target">The constant, as <c>pi</c> or <c>zeta:3</c>.</param>
+    /// <param name="method">The method's command-line name.</param>
+    /// <returns>Zero on a completed walk, two on a usage problem.</returns>
+    public static int Walk(string target, string method)
     {
-        IRealConstant? constant = Methods.TryCreate(method, order);
+        if (!Catalogue.TryParseTarget(target, out string name, out int parameter, out string problem))
+        {
+            Console.Error.WriteLine($"{problem} - try 'list'.");
+            return 2;
+        }
+
+        Recipe? recipe = Catalogue.Find(name, method);
+        if (recipe is null)
+        {
+            string available = string.Join(", ", Catalogue.For(name).Select(r => r.Method));
+            Console.Error.WriteLine($"no method '{method}' for {name} - available: {available}");
+            return 2;
+        }
+
+        IRealConstant? constant = Catalogue.TryCreate(recipe, parameter);
         if (constant is null)
         {
-            Console.Error.WriteLine($"no method '{method}' with a member at s={order} - try 'list'.");
+            Console.Error.WriteLine(
+                $"{recipe.Provider} has no member at {Catalogue.Spell(name, parameter)} - it accepts {recipe.Domain}.");
             return 2;
         }
 
         StopRules rules = StopRules.Default;
-        (Approximation oracle, string oracleDescription) = Methods.Oracle(order, method);
+        (Approximation oracle, string oracleDescription) = Catalogue.Oracle(name, parameter, method);
 
-        Methods.Note? note = Methods.Describe(method);
-
-        Console.Error.WriteLine($"computing zeta({order}) by {note?.Summary ?? method}");
-        Console.Error.WriteLine($"  {Methods.Identity(method, order)}");
-        if (note is not null)
-        {
-            Console.Error.WriteLine($"  {note.StepMeaning}; {note.Cadence}   [{note.Provider}]");
-        }
-
-        Console.Error.WriteLine($"  oracle: {oracleDescription}, half-width {Presentation.Magnitude(oracle.MaxError)}");
+        Console.Error.WriteLine($"computing {Catalogue.Title(name, parameter)} by {recipe.Summary}");
+        Console.Error.WriteLine($"  {recipe.Identity}");
+        Console.Error.WriteLine($"  {recipe.StepMeaning}; {recipe.Cadence}   [{recipe.Provider}]");
+        Console.Error.WriteLine(
+            $"  oracle: {oracleDescription}, half-width {Presentation.Magnitude(oracle.MaxError)}");
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s, {rules.MaxDenominatorBits} denominator bits"));
 
@@ -96,17 +110,20 @@ internal static class InteractiveWalk
             TimeSpan stepCost = perStep.Elapsed;
 
             // The realised error is only known to within the oracle's own half-width, so it is
-            // reported as the largest it could be. An oracle far finer than the bound makes that
-            // distinction invisible, which is why the oracle is taken deep.
-            BigRational realised =
-                BigRational.Abs(refinement.Value - oracle.Value) + oracle.MaxError;
+            // reported as the largest it could be. Once the walk is finer than the oracle that
+            // number stops meaning anything - it would settle at the oracle's half-width and the
+            // ratio would climb past one, reading exactly like a violated bound - so both
+            // columns say so instead of printing a figure that invites the wrong conclusion.
+            bool resolved = refinement.MaxError > oracle.MaxError;
+            BigRational realised = BigRational.Abs(refinement.Value - oracle.Value) + oracle.MaxError;
 
             double digits = -Presentation.DecimalExponent(refinement.MaxError);
 
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"{step} | {Presentation.ToDecimal(refinement.Value, ValuePlaces)} | " +
-                $"{Presentation.Magnitude(refinement.MaxError)} | {Presentation.Magnitude(realised)} | " +
-                $"{Presentation.Ratio(realised, refinement.MaxError)} | {digits:F1} | " +
+                $"{Presentation.Magnitude(refinement.MaxError)} | " +
+                $"{(resolved ? Presentation.Magnitude(realised) : "past oracle")} | " +
+                $"{(resolved ? Presentation.Ratio(realised, refinement.MaxError) : "-")} | {digits:F1} | " +
                 $"{digits - previousDigits:F2} | {Runner.DenominatorBits(refinement)} | " +
                 $"{stepCost.TotalMilliseconds:F1}"));
 
@@ -270,6 +287,9 @@ internal static class InteractiveWalk
             Console.Error.WriteLine($"    {column.PadRight(columnWidth)}  {meaning}");
         }
 
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("    realised and its ratio read \"past oracle\" once this walk is finer than");
+        Console.Error.WriteLine("    the oracle, because from there the oracle cannot resolve the error");
         Console.Error.WriteLine();
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s computing, " +
