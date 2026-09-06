@@ -65,6 +65,9 @@ internal static class Recovery
                 return false;
             }
 
+            // The one place a refusal teaches the grammar. The diagnosis above says something
+            // concrete and stops; the shape belongs here, beside the line the user is about to
+            // type, and printing it in both put it on screen twice four lines apart.
             Console.Error.WriteLine();
             Console.Error.WriteLine($"  {Selector.Shape}");
             Console.Error.WriteLine("  enter a selector, or blank to give up");

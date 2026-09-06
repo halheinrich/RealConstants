@@ -48,7 +48,7 @@ internal static class Selector
         string[] halves = (token ?? string.Empty).Split('/');
         if (halves.Length > 2)
         {
-            error = $"'{token}' has more than one '/' - a selector is <constant>[:<param>][/<method>]";
+            error = $"'{token}' has more than one '/' - a selector names at most one method";
             return false;
         }
 
@@ -139,7 +139,22 @@ internal static class Selector
         return $"{Spell(choice.Constant, choice.Parameter)}/{choice.Recipe.Method}";
     }
 
-    /// <summary>The shape line, quoted wherever a message needs to teach the grammar.</summary>
+    /// <summary>The shape line: the one spelling of the grammar anything is allowed to print.</summary>
+    /// <remarks>
+    /// <para>
+    /// Read by the help screen and by the recovery prompt, and by nothing else. It was written out
+    /// by hand in three places before - here, in the "more than one '/'" error, and in
+    /// <c>Program</c>'s usage, where the copy had already drifted to <c>&lt;parameter&gt;</c> with a
+    /// double space. A rule stated in three places and corrected in one is the defect this project
+    /// keeps meeting; there is now nothing to correct twice.
+    /// </para>
+    /// <para>
+    /// <b>A refusal does not print it.</b> Every diagnosis below ends with something concrete - a
+    /// selector that would have worked, or the names available at the position that was wrong - and
+    /// the grammar then arrives once, at the prompt, which is what the user is about to answer.
+    /// Printing it at the end of the diagnosis as well put it on screen twice, four lines apart.
+    /// </para>
+    /// </remarks>
     public const string Shape = "a selector is <constant>[:<param>][/<method>]";
 
     /// <summary>
@@ -176,8 +191,7 @@ internal static class Selector
             : $"it belongs to: {string.Join(", ", families)}";
 
         return $"'{token}' is a method, not a constant. Methods attach with '/'."
-             + Environment.NewLine + $"  {suggestion}"
-             + Environment.NewLine + $"  {Shape}";
+             + Environment.NewLine + $"  {suggestion}";
     }
 
     /// <summary>Builds a concrete selector naming a constant and one of its methods.</summary>
@@ -243,8 +257,7 @@ internal static class Selector
     /// <summary>Wraps a suggested selector in the retired-form explanation.</summary>
     private static string Retired(string asTyped, string selector) =>
         $"'{asTyped}' is the retired two-token form, where a method followed its constant."
-        + Environment.NewLine + $"  the selector that means it is  {selector}"
-        + Environment.NewLine + $"  {Shape}";
+        + Environment.NewLine + $"  the selector that means it is  {selector}";
 
     /// <summary>Parses the constant half of a selector, with its parameter.</summary>
     private static bool TryParseConstant(

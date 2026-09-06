@@ -71,7 +71,7 @@ internal static class Program
         Console.Error.WriteLine();
         Console.Error.WriteLine("selectors");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("  a selector is  <constant>[:<parameter>][/<method>]");
+        Console.Error.WriteLine($"  {Selector.Shape}");
         Console.Error.WriteLine();
         Console.Error.WriteLine("  omit /<method> and it names every method for that constant. Both commands");
         Console.Error.WriteLine("  take zero or more, so a subset is written as several:");

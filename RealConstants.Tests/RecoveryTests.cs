@@ -130,12 +130,16 @@ public class RecoveryTests
     }
 
     [Fact]
-    public void TheGrammarIsQuotedWhereverSomethingIsRefused()
+    public void ADiagnosisDoesNotCarryTheGrammarBecauseThePromptDoes()
     {
-        foreach (string[] tokens in (string[][])[["central"], ["central", "2"], ["zeta:3", "central"]])
+        // It used to end every diagnosis with the shape line, and the prompt preamble opens with
+        // it, so a user at a terminal read the same sentence twice four lines apart. The prompt is
+        // where it belongs - it is what they are about to answer - so the diagnosis says something
+        // concrete instead and stops.
+        foreach (string[] tokens in (string[][])[["central"], ["central", "2"], ["zeta:3", "central"], ["tau"]])
         {
             (_, string written) = Resolve(tokens);
-            Assert.Contains(Selector.Shape, written, StringComparison.Ordinal);
+            Assert.DoesNotContain(Selector.Shape, written, StringComparison.Ordinal);
         }
     }
 
