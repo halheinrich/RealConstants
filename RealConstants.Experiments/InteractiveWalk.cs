@@ -55,7 +55,12 @@ internal static class InteractiveWalk
         Console.Error.WriteLine();
         Console.WriteLine("step | value | claimed | realised | realised/claimed | digits | gained | den_bits | ms");
 
-        Stopwatch total = Stopwatch.StartNew();
+        // Two clocks, because they answer different questions. `computing` is the one the
+        // wall-clock stop rule reads, and it is PAUSED while the prompt waits: a rule meant to
+        // bound how long a method takes must not count how long a person took to press a key.
+        // `session` is the whole elapsed time and is reported alongside it.
+        Stopwatch computing = Stopwatch.StartNew();
+        Stopwatch session = Stopwatch.StartNew();
         Stopwatch perStep = new();
         int pending = interactive ? 1 : int.MaxValue;
         double previousDigits = 0;
@@ -90,7 +95,7 @@ internal static class InteractiveWalk
                 break;
             }
 
-            if (total.Elapsed.TotalSeconds >= rules.MaxSeconds)
+            if (computing.Elapsed.TotalSeconds >= rules.MaxSeconds)
             {
                 reason = StopReason.TimeLimit;
                 break;
@@ -113,8 +118,15 @@ internal static class InteractiveWalk
                 continue;
             }
 
+            // The pause is not the method's cost. Measured 2026-09-05 against the first
+            // version of this file, which ran one clock straight through the read and then
+            // reported "did not finish within 10 s" after two instant steps and twenty-five
+            // seconds of somebody thinking - a false statement about the method, which is the
+            // one kind of output this bench may not produce.
+            computing.Stop();
             Console.Error.Write("> ");
             string? typed = Console.ReadLine();
+            computing.Start();
 
             if (typed is null || typed.Trim().Equals("q", StringComparison.OrdinalIgnoreCase))
             {
@@ -139,8 +151,9 @@ internal static class InteractiveWalk
 
         Console.Error.WriteLine();
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"stopped after {step} steps in {total.Elapsed.TotalSeconds:F2} s: " +
-            $"{new WalkResult(step, default, total.Elapsed, reason).Describe(rules)}"));
+            $"stopped after {step} steps, {computing.Elapsed.TotalSeconds:F2} s computing " +
+            $"({session.Elapsed.TotalSeconds:F2} s including the pause): " +
+            $"{new WalkResult(step, default, computing.Elapsed, reason).Describe(rules)}"));
 
         return 0;
     }
