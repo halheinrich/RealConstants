@@ -15,17 +15,24 @@ internal enum InstructionKind
     /// <summary>Take some steps. <c>r</c> is this with every step there is.</summary>
     Advance,
 
-    /// <summary>A number the walk cannot honour: zero, or negative.</summary>
-    NotACount,
+    /// <summary>
+    /// Anything the walk does not recognise: a number it cannot honour, a near miss for a key, a
+    /// stray paste. Explained, and nothing happens.
+    /// </summary>
+    Refused,
 }
 
 /// <summary>One instruction from the step prompt.</summary>
 /// <param name="Kind">Which instruction it is.</param>
 /// <param name="Steps">
-/// How many steps to take when <see cref="Kind"/> is <see cref="InstructionKind.Advance"/>, or the
-/// number that could not be honoured when it is <see cref="InstructionKind.NotACount"/>.
+/// How many steps to take when <see cref="Kind"/> is <see cref="InstructionKind.Advance"/>, and
+/// zero otherwise - a refused line advances by nothing, which is the whole of the rule.
 /// </param>
-internal readonly record struct Instruction(InstructionKind Kind, int Steps);
+/// <param name="Explanation">
+/// One line saying what was wrong and what to do, when <see cref="Kind"/> is
+/// <see cref="InstructionKind.Refused"/>. Empty otherwise.
+/// </param>
+internal readonly record struct Instruction(InstructionKind Kind, int Steps, string Explanation);
 
 /// <summary>
 /// The interactive walk: one constant, one method, one step at a time, so the algorithm can be
@@ -265,9 +272,9 @@ internal static class InteractiveWalk
     /// <remarks>
     /// A loop rather than a single read, because two instructions must not consume a step:
     /// <c>h</c>, since a reader who has to spend a refinement to find out what the columns mean is
-    /// being charged for the question, and a count the walk cannot honour, since spending one on a
-    /// refusal is the same charge. Reading a line is all this does; what a line means is
-    /// <see cref="Interpret"/>, which is testable and is where that reasoning lives.
+    /// being charged for the question, and a refusal, since spending one on being told no is the
+    /// same charge. Reading a line is all this does; what a line means is <see cref="Interpret"/>,
+    /// which is testable and is where that reasoning lives.
     /// </remarks>
     private static bool ReadInstruction(StopRules rules, ref int pending)
     {
@@ -287,10 +294,9 @@ internal static class InteractiveWalk
                 continue;
             }
 
-            if (instruction.Kind == InstructionKind.NotACount)
+            if (instruction.Kind == InstructionKind.Refused)
             {
-                Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                    $"  {instruction.Steps} is not a step count - it must be at least 1, and Enter takes one"));
+                Console.Error.WriteLine($"  {instruction.Explanation}");
                 continue;
             }
 
@@ -311,10 +317,27 @@ internal static class InteractiveWalk
     /// reachable by any test in the suite.
     /// </para>
     /// <para>
-    /// <b>A number is recognised input.</b> <c>0</c> and <c>-3</c> both parsed and both then failed
-    /// a <c>many &gt; 0</c> guard that dropped them into the unrecognised branch, so a line the
-    /// walk had understood perfectly well was silently used to mean something else. They are
-    /// answered now. That is a different case from a typo, which still advances one step.
+    /// <b>One rule for everything it does not recognise: rejected, explained, state unchanged.</b>
+    /// A number below one, a near miss for a key, a stray paste - these were three special cases
+    /// and a fallthrough, and they are one branch now.
+    /// </para>
+    /// <para>
+    /// This file argued the other way and was wrong. The position was that at a prompt whose
+    /// commonest answer is "go on", a typo should cost one refinement and not a lecture, so
+    /// anything unrecognised advanced one step. What that produced at a terminal was
+    /// <c>&gt; . zeta:2/central</c> followed by a row, which is a selector pasted at the wrong
+    /// prompt being answered as though it had been Enter. The argument against it is the one that
+    /// carried the refusal of <c>0</c> one commit earlier and should have carried this at the same
+    /// time: a line that silently becomes one step is indistinguishable, in the transcript, from
+    /// input being dropped. It is worse than <c>0</c> was, since <c>0</c> at least did nothing
+    /// surprising. And a refusal is not a lecture - it is one line, and it does not reprint the
+    /// keys, because <c>h</c> exists.
+    /// </para>
+    /// <para>
+    /// <b><c>Enter</c> is the sole thing that advances without a count</b>, and is untouched.
+    /// Whitespace-only is treated as <c>Enter</c>: submitted, a line of spaces looks exactly like
+    /// an empty one, so refusing it would refuse a gesture the user cannot tell apart from the one
+    /// that works.
     /// </para>
     /// <para>
     /// End of input counts as a request to stop - under a terminal that is Ctrl+Z or Ctrl+D, and
@@ -325,38 +348,68 @@ internal static class InteractiveWalk
     {
         if (typed is null)
         {
-            return new Instruction(InstructionKind.Stop, 0);
+            return new Instruction(InstructionKind.Stop, 0, string.Empty);
         }
 
         string trimmed = typed.Trim();
 
-        if (trimmed.Equals("q", StringComparison.OrdinalIgnoreCase))
+        // Empty is Enter, and whitespace-only is Enter too. A line of spaces looks exactly like an
+        // empty one once it has been submitted, so refusing it would refuse a gesture the user
+        // cannot tell apart from the one that works.
+        if (trimmed.Length == 0)
         {
-            return new Instruction(InstructionKind.Stop, 0);
+            return new Instruction(InstructionKind.Advance, 1, string.Empty);
         }
 
-        if (trimmed.Equals("h", StringComparison.OrdinalIgnoreCase))
+        if (trimmed.Equals(QuitKey, StringComparison.OrdinalIgnoreCase))
         {
-            return new Instruction(InstructionKind.Help, 0);
+            return new Instruction(InstructionKind.Stop, 0, string.Empty);
         }
 
-        if (trimmed.Equals("r", StringComparison.OrdinalIgnoreCase))
+        if (trimmed.Equals(HelpKey, StringComparison.OrdinalIgnoreCase))
         {
-            return new Instruction(InstructionKind.Advance, int.MaxValue);
+            return new Instruction(InstructionKind.Help, 0, string.Empty);
+        }
+
+        if (trimmed.Equals(RunKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return new Instruction(InstructionKind.Advance, int.MaxValue, string.Empty);
         }
 
         if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out int many))
         {
             return many >= 1
-                ? new Instruction(InstructionKind.Advance, many)
-                : new Instruction(InstructionKind.NotACount, many);
+                ? new Instruction(InstructionKind.Advance, many, string.Empty)
+                : Refuse(string.Create(CultureInfo.InvariantCulture,
+                    $"{many} is not a step count; it must be at least 1, and Enter takes one step"));
         }
 
-        // Anything UNRECOGNISED advances one step. That is deliberate rather than an oversight: at
-        // a prompt whose commonest answer is "go on", a typo should cost one refinement and not a
-        // lecture. A number is not unrecognised, which is what the branch above is for.
-        return new Instruction(InstructionKind.Advance, 1);
+        return Refuse($"'{Echo(trimmed)}' is not a key or a count; " +
+                      $"Enter takes one step, {HelpKey} lists the keys");
     }
+
+    /// <summary>Builds a refusal: no advance, and one line saying why.</summary>
+    /// <param name="because">What was wrong and what to do, without the leading clause.</param>
+    /// <returns>The instruction.</returns>
+    /// <remarks>
+    /// <b>The leading clause is the same words every time and is not optional.</b> That nothing
+    /// happened is the half of this rule a user reads rather than infers, and it is the half that
+    /// separates a refusal from input being dropped - which is the whole complaint that produced
+    /// the rule.
+    /// </remarks>
+    private static Instruction Refuse(string because) =>
+        new(InstructionKind.Refused, 0, "nothing done - " + because);
+
+    /// <summary>Quotes typed input back at a length a prompt can carry.</summary>
+    /// <param name="trimmed">The line as typed, trimmed.</param>
+    /// <returns>The line, shortened with an ellipsis past <see cref="EchoLimit"/> characters.</returns>
+    /// <remarks>
+    /// A stray paste is one of the cases this rule exists for, and a paste can be a whole
+    /// selector, a path, or a screenful. Echoing it entire would answer a mistyped line with a
+    /// worse-looking one.
+    /// </remarks>
+    private static string Echo(string trimmed) =>
+        trimmed.Length <= EchoLimit ? trimmed : trimmed[..EchoLimit] + "...";
 
     /// <summary>What each key does. The single source for both the header line and the help.</summary>
     /// <remarks>
@@ -368,10 +421,22 @@ internal static class InteractiveWalk
     [
         ("Enter", "one step"),
         ("<n>", "that many steps, n at least 1"),
-        ("r", "run to a stop rule"),
-        ("h", "help"),
-        ("q", "quit"),
+        (RunKey, "run to a stop rule"),
+        (HelpKey, "help"),
+        (QuitKey, "quit"),
     ];
+
+    /// <summary>Run to a stop rule.</summary>
+    private const string RunKey = "r";
+
+    /// <summary>Show the help screen.</summary>
+    private const string HelpKey = "h";
+
+    /// <summary>End the walk.</summary>
+    private const string QuitKey = "q";
+
+    /// <summary>How much of a mistyped line a refusal quotes back before eliding it.</summary>
+    private const int EchoLimit = 30;
 
     /// <summary>What each column of the walk means.</summary>
     private static readonly (string Column, string Meaning)[] Columns =
