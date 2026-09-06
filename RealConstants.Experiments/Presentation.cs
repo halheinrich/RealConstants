@@ -88,12 +88,19 @@ internal static class Presentation
             ? "exact"
             : string.Create(CultureInfo.InvariantCulture, $"{-DecimalExponent(bound):F1}");
 
-    /// <summary>Renders a ratio of two exact rationals to three decimal places.</summary>
+    /// <summary>Renders a ratio of two exact rationals.</summary>
     /// <param name="numerator">The numerator.</param>
     /// <param name="denominator">The denominator. Must be non-zero.</param>
+    /// <param name="places">How many decimal places to show.</param>
     /// <returns>The rendering, or a dash when the denominator is zero.</returns>
-    public static string Ratio(BigRational numerator, BigRational denominator) =>
-        denominator.IsZero ? "-" : ToDecimal(numerator / denominator, 3);
+    /// <remarks>
+    /// Three places suit the walk, where a realised-over-claimed near 0.9 is the interesting
+    /// case. The file needs more: direct summation's bound is loose by three or four orders, and
+    /// at three places its whole column reads 0.000, which looks like a defect and hides the one
+    /// figure that distinguishes a merely slow method from a merely conservative bound.
+    /// </remarks>
+    public static string Ratio(BigRational numerator, BigRational denominator, int places = 3) =>
+        denominator.IsZero ? "-" : ToDecimal(numerator / denominator, places);
 
     /// <summary>Renders a magnitude as a bare base-ten exponent, for a machine-readable column.</summary>
     /// <param name="value">The value.</param>
