@@ -3,6 +3,30 @@ using System.Globalization;
 
 namespace HalHeinrich.Numerics.Experiments;
 
+/// <summary>What a line typed at the step prompt asks the walk to do.</summary>
+internal enum InstructionKind
+{
+    /// <summary>End the walk - <c>q</c>, or end of input.</summary>
+    Stop,
+
+    /// <summary>Show the help screen, without spending a refinement on the question.</summary>
+    Help,
+
+    /// <summary>Take some steps. <c>r</c> is this with every step there is.</summary>
+    Advance,
+
+    /// <summary>A number the walk cannot honour: zero, or negative.</summary>
+    NotACount,
+}
+
+/// <summary>One instruction from the step prompt.</summary>
+/// <param name="Kind">Which instruction it is.</param>
+/// <param name="Steps">
+/// How many steps to take when <see cref="Kind"/> is <see cref="InstructionKind.Advance"/>, or the
+/// number that could not be honoured when it is <see cref="InstructionKind.NotACount"/>.
+/// </param>
+internal readonly record struct Instruction(InstructionKind Kind, int Steps);
+
 /// <summary>
 /// The interactive walk: one constant, one method, one step at a time, so the algorithm can be
 /// felt rather than summarised.
@@ -227,50 +251,99 @@ internal static class InteractiveWalk
     /// <param name="pending">Set to how many steps to take before prompting again.</param>
     /// <returns><see langword="true"/> if the walker asked to stop.</returns>
     /// <remarks>
-    /// A loop rather than a single read, because <c>h</c> must not consume a step: a reader who
-    /// has to spend a refinement to find out what the columns mean is being charged for the
-    /// question. End of input counts as a request to stop - under a terminal that is Ctrl+Z or
-    /// Ctrl+D, and the redirected path never reaches here at all.
+    /// A loop rather than a single read, because two instructions must not consume a step:
+    /// <c>h</c>, since a reader who has to spend a refinement to find out what the columns mean is
+    /// being charged for the question, and a count the walk cannot honour, since spending one on a
+    /// refusal is the same charge. Reading a line is all this does; what a line means is
+    /// <see cref="Interpret"/>, which is testable and is where that reasoning lives.
     /// </remarks>
     private static bool ReadInstruction(StopRules rules, ref int pending)
     {
         while (true)
         {
             Console.Error.Write("> ");
-            string? typed = Console.ReadLine();
+            Instruction instruction = Interpret(Console.ReadLine());
 
-            if (typed is null)
+            if (instruction.Kind == InstructionKind.Stop)
             {
                 return true;
             }
 
-            string trimmed = typed.Trim();
-
-            if (trimmed.Equals("q", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (trimmed.Equals("h", StringComparison.OrdinalIgnoreCase))
+            if (instruction.Kind == InstructionKind.Help)
             {
                 WriteHelp(rules);
                 continue;
             }
 
-            if (trimmed.Equals("r", StringComparison.OrdinalIgnoreCase))
+            if (instruction.Kind == InstructionKind.NotACount)
             {
-                pending = int.MaxValue;
-                return false;
+                Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"  {instruction.Steps} is not a step count - it must be at least 1, and Enter takes one"));
+                continue;
             }
 
-            // Anything unrecognised advances one step. That is deliberate rather than an
-            // oversight: at a prompt whose commonest answer is "go on", a typo should cost one
-            // refinement and not a lecture.
-            pending = int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out int many) && many > 0
-                ? many
-                : 1;
+            pending = instruction.Steps;
             return false;
         }
+    }
+
+    /// <summary>Reads one line typed at the step prompt as the instruction it gives.</summary>
+    /// <param name="typed">The line, or <see langword="null"/> at end of input.</param>
+    /// <returns>What it asks for.</returns>
+    /// <remarks>
+    /// <para>
+    /// Separated from the read so that it can be tested, which is the point: the prompt itself is
+    /// terminal-gated and unverifiable from a scripted session, but what a line <i>means</i> is a
+    /// pure function of the line and nothing about it needs a keypress. The defect this was pulled
+    /// out for - <c>0</c> advancing one step - was found by a person in ten seconds and was not
+    /// reachable by any test in the suite.
+    /// </para>
+    /// <para>
+    /// <b>A number is recognised input.</b> <c>0</c> and <c>-3</c> both parsed and both then failed
+    /// a <c>many &gt; 0</c> guard that dropped them into the unrecognised branch, so a line the
+    /// walk had understood perfectly well was silently used to mean something else. They are
+    /// answered now. That is a different case from a typo, which still advances one step.
+    /// </para>
+    /// <para>
+    /// End of input counts as a request to stop - under a terminal that is Ctrl+Z or Ctrl+D, and
+    /// the redirected path never reaches here at all.
+    /// </para>
+    /// </remarks>
+    public static Instruction Interpret(string? typed)
+    {
+        if (typed is null)
+        {
+            return new Instruction(InstructionKind.Stop, 0);
+        }
+
+        string trimmed = typed.Trim();
+
+        if (trimmed.Equals("q", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Instruction(InstructionKind.Stop, 0);
+        }
+
+        if (trimmed.Equals("h", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Instruction(InstructionKind.Help, 0);
+        }
+
+        if (trimmed.Equals("r", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Instruction(InstructionKind.Advance, int.MaxValue);
+        }
+
+        if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out int many))
+        {
+            return many >= 1
+                ? new Instruction(InstructionKind.Advance, many)
+                : new Instruction(InstructionKind.NotACount, many);
+        }
+
+        // Anything UNRECOGNISED advances one step. That is deliberate rather than an oversight: at
+        // a prompt whose commonest answer is "go on", a typo should cost one refinement and not a
+        // lecture. A number is not unrecognised, which is what the branch above is for.
+        return new Instruction(InstructionKind.Advance, 1);
     }
 
     /// <summary>What each key does. The single source for both the header line and the help.</summary>
@@ -282,7 +355,7 @@ internal static class InteractiveWalk
     private static readonly (string Key, string Meaning)[] Keys =
     [
         ("Enter", "one step"),
-        ("<n>", "that many steps"),
+        ("<n>", "that many steps, n at least 1"),
         ("r", "run to a stop rule"),
         ("h", "help"),
         ("q", "quit"),
