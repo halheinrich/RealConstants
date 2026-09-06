@@ -97,10 +97,16 @@ internal static class Selector
         List<Choice> all = [];
         error = string.Empty;
 
-        foreach (string token in tokens)
+        string[] asArray = [.. tokens];
+
+        foreach (string token in asArray)
         {
             if (!TryParse(token, out Choice[] some, out error))
             {
+                // A whole-line explanation beats a per-token one where the line has a shape we
+                // recognise: "central is a method" is true but unhelpful when the real problem is
+                // that the user wrote the argument order this grammar replaced.
+                error = DiagnoseRetiredForm(asArray) ?? error;
                 choices = [];
                 return false;
             }
@@ -133,6 +139,113 @@ internal static class Selector
         return $"{Spell(choice.Constant, choice.Parameter)}/{choice.Recipe.Method}";
     }
 
+    /// <summary>The shape line, quoted wherever a message needs to teach the grammar.</summary>
+    public const string Shape = "a selector is <constant>[:<param>][/<method>]";
+
+    /// <summary>
+    /// Explains a token that names no constant, saying what it <i>is</i> where the catalogue
+    /// knows.
+    /// </summary>
+    /// <param name="token">The token as typed.</param>
+    /// <returns>The diagnosis, over one or more lines.</returns>
+    /// <remarks>
+    /// A method name reaching this branch was the original complaint: <c>central</c> is a token
+    /// the catalogue knows perfectly well, and answering "no constant named 'central'" treats it
+    /// as an unrecognised noun and lists the wrong set. Every branch here resolves through
+    /// <see cref="Catalogue"/>; none carries a list of its own, and the round-trip test in
+    /// <c>SelectorTests</c> is what keeps that true.
+    /// </remarks>
+    private static string DiagnoseUnknownConstant(string token)
+    {
+        Recipe[] asMethod = Array.FindAll(
+            Catalogue.Recipes,
+            r => string.Equals(r.Method, token, StringComparison.OrdinalIgnoreCase));
+
+        if (asMethod.Length == 0)
+        {
+            string known = string.Join(", ", Catalogue.Constants.Select(c => c.Name));
+            return $"no constant named '{token}' - known: {known}";
+        }
+
+        string[] families = [.. asMethod.Select(r => r.Constant).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        // One family is the common case and lets the suggestion be concrete; several would make
+        // any single example arbitrary, so the constants are named instead.
+        string suggestion = families.Length == 1
+            ? $"try  {Example(families[0], asMethod[0].Method)}"
+            : $"it belongs to: {string.Join(", ", families)}";
+
+        return $"'{token}' is a method, not a constant. Methods attach with '/'."
+             + Environment.NewLine + $"  {suggestion}"
+             + Environment.NewLine + $"  {Shape}";
+    }
+
+    /// <summary>Builds a concrete selector naming a constant and one of its methods.</summary>
+    /// <param name="constant">The constant's catalogue name.</param>
+    /// <param name="method">The method's catalogue name.</param>
+    /// <returns>A selector such as <c>zeta:2/central</c>.</returns>
+    /// <remarks>
+    /// The parameter is taken from the bench set rather than invented, so the example is a
+    /// pairing this bench actually runs and the catalogue still owns every value in it.
+    /// </remarks>
+    public static string Example(string constant, string method)
+    {
+        (string Constant, int Parameter) entry = Array.Find(
+            Catalogue.BenchSet,
+            b => string.Equals(b.Constant, constant, StringComparison.OrdinalIgnoreCase));
+
+        return $"{Spell(constant, entry.Parameter)}/{method}";
+    }
+
+    /// <summary>
+    /// Recognises the retired two-token form and says what it would have meant.
+    /// </summary>
+    /// <param name="tokens">The arguments as typed.</param>
+    /// <returns>The diagnosis, or <see langword="null"/> if this is not that shape.</returns>
+    /// <remarks>
+    /// <c>step central 2</c> and <c>step zeta:3 central</c> both named a method and a constant in
+    /// two tokens, which is the grammar removed when the two commands were given one. Naming the
+    /// selector that means it is help; accepting it would restore the second grammar, so it is
+    /// diagnosed and refused rather than translated.
+    /// </remarks>
+    public static string? DiagnoseRetiredForm(string[] tokens)
+    {
+        ArgumentNullException.ThrowIfNull(tokens);
+
+        if (tokens.Length != 2)
+        {
+            return null;
+        }
+
+        string asTyped = string.Join(" ", tokens);
+
+        // step <method> <param>
+        Recipe? leading = Array.Find(
+            Catalogue.Recipes,
+            r => string.Equals(r.Method, tokens[0], StringComparison.OrdinalIgnoreCase));
+
+        if (leading is not null &&
+            int.TryParse(tokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parameter))
+        {
+            return Retired(asTyped, $"{Spell(leading.Constant, parameter)}/{leading.Method}");
+        }
+
+        // step <constant>[:<param>] <method>
+        if (TryParseConstant(tokens[0], out string constant, out _, out _) &&
+            Catalogue.Find(constant, tokens[1]) is not null)
+        {
+            return Retired(asTyped, $"{tokens[0]}/{tokens[1]}");
+        }
+
+        return null;
+    }
+
+    /// <summary>Wraps a suggested selector in the retired-form explanation.</summary>
+    private static string Retired(string asTyped, string selector) =>
+        $"'{asTyped}' is the retired two-token form, where a method followed its constant."
+        + Environment.NewLine + $"  the selector that means it is  {selector}"
+        + Environment.NewLine + $"  {Shape}";
+
     /// <summary>Parses the constant half of a selector, with its parameter.</summary>
     private static bool TryParseConstant(
         string text, out string constant, out int parameter, out string error)
@@ -151,8 +264,7 @@ internal static class Selector
         ConstantNote? note = Catalogue.FindConstant(parts[0]);
         if (note is null)
         {
-            string known = string.Join(", ", Catalogue.Constants.Select(c => c.Name));
-            error = $"no constant named '{parts[0]}' - known: {known}";
+            error = DiagnoseUnknownConstant(parts[0]);
             return false;
         }
 

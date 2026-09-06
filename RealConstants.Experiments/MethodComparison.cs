@@ -40,9 +40,8 @@ internal static class MethodComparison
                 return 2;
             }
         }
-        else if (!Selector.TryParseAll(selectors, out choices, out string error))
+        else if (!Recovery.TryResolve(selectors, null, out choices))
         {
-            Console.Error.WriteLine($"{error} - try 'list'.");
             return 2;
         }
 

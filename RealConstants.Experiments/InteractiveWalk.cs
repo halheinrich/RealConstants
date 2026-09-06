@@ -49,30 +49,11 @@ internal static class InteractiveWalk
             return 2;
         }
 
-        if (!Selector.TryParseAll(selectors, out Choice[] choices, out string error))
+        // One condition, checked wherever the selection comes from - the command line or a reply
+        // at the prompt. A walk is one sequence of refinements and there is no sensible reading
+        // of two, and a provider that will not build is not a walk either.
+        if (!Recovery.TryResolve(selectors, Resolvable, out Choice[] choices))
         {
-            Console.Error.WriteLine($"{error} - try 'list'.");
-            return 2;
-        }
-
-        if (choices.Length != 1)
-        {
-            // The failure mode the grammar introduces, and the one worth a real sentence: a
-            // constant with no method names all of them, which is right for `compare` and
-            // meaningless here. Naming what was selected, and one way to narrow it, beats
-            // reprinting a usage line the reader has already read.
-            string named = string.Join(", ", choices.Select(Selector.Spell));
-
-            Console.Error.WriteLine(choices.Length == 0
-                ? $"'{string.Join(" ", selectors)}' names no method"
-                : string.Create(CultureInfo.InvariantCulture,
-                    $"'{string.Join(" ", selectors)}' names {choices.Length} methods; pick one, e.g. {Selector.Spell(choices[0])}"));
-
-            if (choices.Length > 1)
-            {
-                Console.Error.WriteLine($"  selected: {named}");
-            }
-
             return 2;
         }
 
@@ -81,12 +62,7 @@ internal static class InteractiveWalk
         int parameter = choice.Parameter;
         Recipe recipe = choice.Recipe;
 
-        IRealConstant? constant = Catalogue.TryCreate(recipe, parameter, out string refusal);
-        if (constant is null)
-        {
-            Console.Error.WriteLine($"{Selector.Spell(choice)}: {refusal}");
-            return 2;
-        }
+        IRealConstant constant = Catalogue.TryCreate(recipe, parameter, out _)!;
 
         StopRules rules = StopRules.Default;
         (Approximation oracle, string oracleDescription) = Catalogue.Oracle(name, parameter, recipe.Method);
@@ -217,6 +193,31 @@ internal static class InteractiveWalk
             $"{new WalkResult(step, default, computing.Elapsed, reason).Describe(rules)}"));
 
         return 0;
+    }
+
+    /// <summary>Says whether a selection is one this walk can run, and why not when it is not.</summary>
+    /// <param name="choices">The resolved selection.</param>
+    /// <returns><see langword="null"/> when the walk can proceed, otherwise the diagnosis.</returns>
+    private static string? Resolvable(Choice[] choices)
+    {
+        if (choices.Length != 1)
+        {
+            // The failure the grammar introduces: a constant with no method names all of them,
+            // which is right for compare and meaningless here. Naming what was selected, and one
+            // way to narrow it, beats reprinting a usage line the reader has already read.
+            string named = string.Join(", ", choices.Select(Selector.Spell));
+
+            return choices.Length == 0
+                ? "that names no method"
+                : $"that names {choices.Length} methods; pick one, e.g. {Selector.Spell(choices[0])}"
+                  + Environment.NewLine + $"  selected: {named}";
+        }
+
+        Choice only = choices[0];
+
+        return Catalogue.TryCreate(only.Recipe, only.Parameter, out string refusal) is null
+            ? $"{Selector.Spell(only)}: {refusal}"
+            : null;
     }
 
     /// <summary>
