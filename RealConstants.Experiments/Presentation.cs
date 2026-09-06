@@ -44,13 +44,23 @@ internal static class Presentation
     }
 
     /// <summary>
-    /// Estimates the base-ten exponent of a positive rational, for a magnitude column.
+    /// The base-ten exponent of a positive rational, for a magnitude column.
     /// </summary>
     /// <param name="value">A strictly positive rational.</param>
-    /// <returns>Approximately <c>log10(value)</c>.</returns>
+    /// <returns><c>log10(value)</c>, to the accuracy of a <see cref="double"/>.</returns>
     /// <remarks>
-    /// From the bit lengths of numerator and denominator, so it costs nothing and is accurate to
-    /// well under a digit - which is all a column of exponents needs. Presentation only.
+    /// <para>
+    /// The difference of the two <see cref="BigInteger.Log10(BigInteger)"/> values, which is
+    /// exact to double precision at any size. Presentation only.
+    /// </para>
+    /// <para>
+    /// This was a difference of bit lengths until 2026-09-05, and that estimate was documented
+    /// as accurate to well under a digit, which it was. It was also systematically optimistic by
+    /// up to 0.3, because a bit length rounds a logarithm up: a bound of exactly <c>1/6</c>, whose
+    /// log10 is <c>-0.778</c>, printed as <c>1e-0.6</c> under a column headed <c>digits</c>. A
+    /// documented estimate is not a false claim, but the honest figure costs the same, so there
+    /// is no reason to print the estimate.
+    /// </para>
     /// </remarks>
     public static double DecimalExponent(BigRational value)
     {
@@ -59,8 +69,7 @@ internal static class Presentation
             return double.NegativeInfinity;
         }
 
-        long bits = value.Numerator.GetBitLength() - value.Denominator.GetBitLength();
-        return bits * 0.30102999566398120;
+        return BigInteger.Log10(value.Numerator) - BigInteger.Log10(value.Denominator);
     }
 
     /// <summary>Renders a magnitude as a signed decimal exponent, e.g. <c>1e-27</c>.</summary>
