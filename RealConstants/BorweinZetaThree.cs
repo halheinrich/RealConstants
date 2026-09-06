@@ -100,7 +100,7 @@ namespace HalHeinrich.Numerics;
 /// cubes are accumulated once each and reused. The recombination cannot: the weights
 /// <c>r_k</c> depend on the degree, so the division by <c>1+x</c> and the weighted sum are
 /// redone at every step, which makes reaching step <c>n</c> quadratic in <c>n</c> where
-/// <see cref="AperyZetaThree"/> is linear. That is a property of the scheme rather than of this
+/// <see cref="CentralBinomialZeta"/> is linear. That is a property of the scheme rather than of this
 /// implementation - an acceleration whose weights did not depend on the depth would not
 /// accelerate - and it is stated here rather than left for a reader to discover from a profile.
 /// </para>
@@ -111,7 +111,7 @@ namespace HalHeinrich.Numerics;
 /// halheinrich/Math#53 for why an avoidable guard is worth avoiding.
 /// </para>
 /// <para>
-/// This provider shares no code with <see cref="AperyZetaThree"/>. The two exist to check each
+/// This provider shares no code with <see cref="CentralBinomialZeta"/>. The two exist to check each
 /// other, and a defect in a shared engine would move both values the same way, leaving them in
 /// agreement inside their bounds at exactly the moment the check was needed.
 /// <c>SPEC-rational-ratio.md</c> section 4 ratifies that as a rule rather than a preference.

@@ -3,7 +3,7 @@ using static HalHeinrich.Numerics.Tests.Enclosures;
 namespace HalHeinrich.Numerics.Tests;
 
 /// <summary>
-/// The provider cross-check for zeta(3): <see cref="AperyZetaThree"/> and
+/// The provider cross-check for zeta(3): <see cref="CentralBinomialZeta"/> and
 /// <see cref="BorweinZetaThree"/> compute it by schemes that share no code, so their enclosures
 /// must overlap.
 /// </summary>
@@ -16,7 +16,7 @@ namespace HalHeinrich.Numerics.Tests;
 /// which.
 /// </para>
 /// <para>
-/// It is not a substitute for the enclosure tests against <see cref="ZetaThreeReference"/>. The
+/// It is not a substitute for the enclosure tests against <see cref="ZetaReference"/>. The
 /// cross-check would be equally happy if both providers converged, in agreement, on some number
 /// that is not zeta(3). Together the two kinds of test close that gap; separately neither does.
 /// </para>
@@ -44,7 +44,7 @@ public class ZetaThreeCrossCheckTests
     private const int FirstContainedBorweinStep = 29;
 
     private static Approximation[] AperyPrefix() =>
-        [.. new AperyZetaThree().Refinements().Take(AperySteps)];
+        [.. new CentralBinomialZeta(3).Refinements().Take(AperySteps)];
 
     private static Approximation[] BorweinPrefix() =>
         [.. new BorweinZetaThree().Refinements().Take(BorweinSteps)];
@@ -161,7 +161,7 @@ public class ZetaThreeCrossCheckTests
         // discover. Against Apery step 0, whose bound is 5/96, the same displacement is
         // invisible: a cross-check can only refute a disagreement larger than the two bounds
         // together, so pairing a deep provider with a shallow one proves very little.
-        Approximation shallow = new AperyZetaThree().Refinements().First();
+        Approximation shallow = new CentralBinomialZeta(3).Refinements().First();
 
         Assert.True(Meet(shallow, Displaced(TenToTheMinus(21))));
     }

@@ -16,6 +16,8 @@ namespace HalHeinrich.Numerics.Tests;
 /// </remarks>
 public class BorweinZetaThreeTests
 {
+    private static readonly ZetaReference Reference = ZetaReference.For(3);
+
     // ---------- ErrorBoundAt ----------
 
     [Fact]
@@ -134,8 +136,8 @@ public class BorweinZetaThreeTests
         int step = 0;
         foreach (Approximation refinement in zeta.Refinements().Take(40))
         {
-            bool above = refinement.Value > ZetaThreeReference.Upper;
-            bool below = refinement.Value < ZetaThreeReference.Lower;
+            bool above = refinement.Value > Reference.Upper;
+            bool below = refinement.Value < Reference.Lower;
 
             Assert.True(
                 step < 3 ? below : above,
@@ -168,7 +170,7 @@ public class BorweinZetaThreeTests
         foreach (Approximation refinement in zeta.Refinements().Take(79))
         {
             Assert.True(
-                ZetaThreeReference.Pins(refinement),
+                Reference.Pins(refinement),
                 Inv($"step {step} claims a bound of {refinement.MaxError} that excludes zeta(3)"));
             step++;
         }
@@ -186,7 +188,7 @@ public class BorweinZetaThreeTests
 
         Assert.True(deep.MaxError < TenToTheMinus(63));
         Assert.True(
-            ZetaThreeReference.LiesWithin(deep),
+            Reference.LiesWithin(deep),
             Inv($"a 90-step enclosure of half-width {deep.MaxError} fell outside the reference"));
     }
 
@@ -208,8 +210,8 @@ public class BorweinZetaThreeTests
         Approximation halvedAtZero =
             Approximation.Create(prefix[0].Value, prefix[0].MaxError / 2);
 
-        Assert.True(ZetaThreeReference.AgreesWith(prefix[0]));
-        Assert.False(ZetaThreeReference.AgreesWith(halvedAtZero), "a half-sized bound survived at step 0");
+        Assert.True(Reference.AgreesWith(prefix[0]));
+        Assert.False(Reference.AgreesWith(halvedAtZero), "a half-sized bound survived at step 0");
 
         for (int step = 1; step < prefix.Length; step++)
         {
@@ -217,7 +219,7 @@ public class BorweinZetaThreeTests
                 Approximation.Create(prefix[step].Value, prefix[step].MaxError / 2);
 
             Assert.True(
-                ZetaThreeReference.AgreesWith(halved),
+                Reference.AgreesWith(halved),
                 Inv($"step {step} unexpectedly refuted a half-sized bound"));
         }
     }
@@ -236,9 +238,9 @@ public class BorweinZetaThreeTests
             Approximation unscaled =
                 Approximation.Create(refinement.Value * 3 / 4, refinement.MaxError);
 
-            Assert.True(ZetaThreeReference.AgreesWith(refinement));
+            Assert.True(Reference.AgreesWith(refinement));
             Assert.False(
-                ZetaThreeReference.AgreesWith(unscaled),
+                Reference.AgreesWith(unscaled),
                 Inv($"an unscaled value survived at step {step}"));
             step++;
         }
@@ -268,7 +270,7 @@ public class BorweinZetaThreeTests
                 refinement.MaxError > withoutTheFactor,
                 Inv($"the eta-to-zeta factor is missing from the bound at step {step}"));
             Assert.True(
-                ZetaThreeReference.AgreesWith(
+                Reference.AgreesWith(
                     Approximation.Create(refinement.Value, withoutTheFactor)),
                 Inv($"step {step} refuted the reduced bound, so this test can be strengthened"));
             step++;
