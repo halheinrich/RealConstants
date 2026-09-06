@@ -51,7 +51,7 @@ internal static class MethodComparison
             $"{choices.Length} pairings selected"));
         Console.Error.WriteLine();
 
-        Console.WriteLine("constant,method,target,steps,seconds,bound,denominator_bits,outcome");
+        Console.WriteLine("constant,method,target,steps,seconds,bound_log10,denominator_bits,outcome");
 
         foreach (Choice choice in choices)
         {
@@ -95,7 +95,7 @@ internal static class MethodComparison
 
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"{spelling},{recipe.Method},1e-{places},{result.Steps},{result.Elapsed.TotalSeconds:F3}," +
-                $"{Presentation.Magnitude(result.Reached.MaxError)}," +
+                $"{Presentation.Exponent(result.Reached.MaxError)}," +
                 $"{Runner.DenominatorBits(result.Reached)},{Field(result.Describe(rules))}"));
 
             if (result.Reason == StopReason.TargetMet)

@@ -95,6 +95,23 @@ internal static class Presentation
     public static string Ratio(BigRational numerator, BigRational denominator) =>
         denominator.IsZero ? "-" : ToDecimal(numerator / denominator, 3);
 
+    /// <summary>Renders a magnitude as a bare base-ten exponent, for a machine-readable column.</summary>
+    /// <param name="value">The value.</param>
+    /// <returns><c>-5.7</c>, or empty where the value is not strictly positive.</returns>
+    /// <remarks>
+    /// <see cref="Magnitude"/>'s <c>1e-5.7</c> is compact and readable and is <b>not a number</b>:
+    /// no CSV consumer parses it, because scientific notation carries an integer exponent.
+    /// Emitting the exponent alone is parseable and keeps the at-a-glance digit count that made
+    /// the log form attractive in the first place, where <c>2.0e-6</c> would be parseable and
+    /// lose it. An empty field rather than <c>-inf</c> for a zero bound: no provider here
+    /// produces one, and a reader's tools will take a blank as missing rather than as a number
+    /// they must special-case.
+    /// </remarks>
+    public static string Exponent(BigRational value) =>
+        value.Sign <= 0
+            ? string.Empty
+            : string.Create(CultureInfo.InvariantCulture, $"{DecimalExponent(value):F1}");
+
     /// <summary>
     /// Renders only the decimal digits an enclosure actually pins: the prefix its lower and upper
     /// bounds agree on.
