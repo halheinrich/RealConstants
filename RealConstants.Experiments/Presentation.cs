@@ -94,4 +94,60 @@ internal static class Presentation
     /// <returns>The rendering, or a dash when the denominator is zero.</returns>
     public static string Ratio(BigRational numerator, BigRational denominator) =>
         denominator.IsZero ? "-" : ToDecimal(numerator / denominator, 3);
+
+    /// <summary>
+    /// Renders only the decimal digits an enclosure actually pins: the prefix its lower and upper
+    /// bounds agree on.
+    /// </summary>
+    /// <param name="enclosure">The enclosure.</param>
+    /// <param name="maxPlaces">How many decimal places to consider before giving up.</param>
+    /// <returns>
+    /// The shared prefix, <c>?</c> where the two bounds agree on nothing at all, and the prefix
+    /// with a trailing <c>...</c> where it reaches <paramref name="maxPlaces"/>.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <c>../VISION.md</c> § Guiding principles: <i>an unearned digit should be unrepresentable,
+    /// not merely discouraged.</i> Rendering the value to a fixed forty places presented
+    /// thirty-nine digits of noise as precision at step 0 of every walk, in the one tool whose
+    /// job is showing what a method is doing.
+    /// </para>
+    /// <para>
+    /// The prefix is taken character by character from the two <b>truncated</b> renderings, and
+    /// truncation is the right rounding at both ends: a digit the two share after truncating is a
+    /// digit they share exactly, and a digit truncation separates - <c>1.29999</c> against
+    /// <c>1.30000</c> - is one the enclosure genuinely does not pin. Comparing the whole rendering
+    /// rather than the fractional part is what makes <c>[9.9, 10.1]</c> come out as nothing
+    /// earned: the integer parts differ in width, so no character position agrees, which is the
+    /// truth. A count of digits derived from the bound would have said one.
+    /// </para>
+    /// <para>
+    /// A prefix ending at the point - <c>1.</c> - is kept as it is. That is the honest rendering
+    /// of an enclosure that pins the units digit and nothing after it, and it is what the first
+    /// step of most walks earns. The column then grows as the method converges, so the panel
+    /// shows convergence rather than describing it.
+    /// </para>
+    /// </remarks>
+    public static string Earned(Approximation enclosure, int maxPlaces)
+    {
+        string low = ToDecimal(enclosure.Lower, maxPlaces);
+
+        // An exact enclosure pins every digit it has, so there is no prefix to take.
+        string high = enclosure.IsExact ? low : ToDecimal(enclosure.Upper, maxPlaces);
+
+        int shared = 0;
+        while (shared < low.Length && shared < high.Length && low[shared] == high[shared])
+        {
+            shared++;
+        }
+
+        if (shared == 0)
+        {
+            return "?";
+        }
+
+        return shared == low.Length && shared == high.Length
+            ? low + "..."
+            : low[..shared];
+    }
 }

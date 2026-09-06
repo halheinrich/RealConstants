@@ -22,7 +22,15 @@ namespace HalHeinrich.Numerics.Experiments;
 /// </remarks>
 internal static class InteractiveWalk
 {
-    /// <summary>How many decimal places the value column shows.</summary>
+    /// <summary>
+    /// How many decimal places the value column will consider before giving up on the prefix.
+    /// </summary>
+    /// <remarks>
+    /// A cap, not a width. The column shows the digits the enclosure pins and no more, so it is
+    /// one character wide at step 0 of a slow method and grows as the walk converges. Declining
+    /// to print an earned digit costs a reader nothing; printing an unearned one is the thing
+    /// ../VISION.md forbids.
+    /// </remarks>
     private const int ValuePlaces = 40;
 
     /// <summary>Walks one method for one constant.</summary>
@@ -103,7 +111,7 @@ internal static class InteractiveWalk
         }
 
         Console.Error.WriteLine();
-        Console.WriteLine("step | value | claimed | realised | realised/claimed | digits | gained | den_bits | ms");
+        Console.WriteLine("step | value | claimed | realised | realised/claimed | gained | den_bits | us");
 
         // Two clocks, because they answer different questions. `computing` is the one the
         // wall-clock stop rule reads, and it is PAUSED while the prompt waits: a rule meant to
@@ -147,12 +155,12 @@ internal static class InteractiveWalk
             double digits = -Presentation.DecimalExponent(refinement.MaxError);
 
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{step} | {Presentation.ToDecimal(refinement.Value, ValuePlaces)} | " +
+                $"{step} | {Presentation.Earned(refinement, ValuePlaces)} | " +
                 $"{Presentation.Magnitude(refinement.MaxError)} | " +
                 $"{(resolved ? Presentation.Magnitude(realised) : "past oracle")} | " +
-                $"{(resolved ? Presentation.Ratio(realised, refinement.MaxError) : "-")} | {digits:F1} | " +
+                $"{(resolved ? Presentation.Ratio(realised, refinement.MaxError) : "-")} | " +
                 $"{digits - previousDigits:F2} | {Runner.DenominatorBits(refinement)} | " +
-                $"{stepCost.TotalMilliseconds:F1}"));
+                $"{stepCost.TotalMicroseconds:F0}"));
 
             previousDigits = digits;
             step++;
@@ -283,14 +291,13 @@ internal static class InteractiveWalk
     private static readonly (string Column, string Meaning)[] Columns =
     [
         ("step", "zero-based index into Refinements()"),
-        ("value", "the enclosure's centre, truncated to 40 decimal places"),
+        ("value", "only the digits Lower and Upper agree on; ? when they agree on none"),
         ("claimed", "MaxError - the proven bound this enclosure carries, not its error"),
         ("realised", "|value - oracle| widened by the oracle's own half-width"),
         ("realised/claimed", "upper bound on how much of the claimed bound the error uses"),
-        ("digits", "-log10(claimed): decimal places the bound guarantees"),
-        ("gained", "digits won by this step alone"),
+        ("gained", "decimal places won by this step alone, from -log10(claimed)"),
         ("den_bits", "bit-length of the larger denominator the enclosure carries"),
-        ("ms", "wall-clock to compute this refinement, rendering excluded"),
+        ("us", "microseconds to compute this refinement, rendering excluded - noisy per row"),
     ];
 
     /// <summary>Writes the help screen to standard error, so redirected data stays clean.</summary>
@@ -317,6 +324,8 @@ internal static class InteractiveWalk
         Console.Error.WriteLine();
         Console.Error.WriteLine("    realised and its ratio read \"past oracle\" once this walk is finer than");
         Console.Error.WriteLine("    the oracle, because from there the oracle cannot resolve the error");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("    a single us reading is noisy at this scale - read the trend, not the row");
         Console.Error.WriteLine();
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s computing, " +
