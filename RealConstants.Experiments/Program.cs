@@ -29,6 +29,56 @@ namespace HalHeinrich.Numerics.Experiments;
 /// </remarks>
 internal static class Program
 {
+    /// <summary>The batch table's command name, spelled once.</summary>
+    public const string CompareCommand = "compare";
+
+    /// <summary>The interactive walk's command name, spelled once.</summary>
+    public const string StepCommand = "step";
+
+    /// <summary>Commands worth running, each with the reason to run it.</summary>
+    /// <remarks>
+    /// <para>
+    /// The rest of the usage screen explains the grammar and gives every method its identity, its
+    /// step and its cadence. None of that says why you would run any of it, so a newcomer learns
+    /// the syntax and still has to invent a first command. These are that first command: a
+    /// runnable line, and what it is <i>for</i> rather than what it mechanically does.
+    /// </para>
+    /// <para>
+    /// Where an example corresponds to something <c>../SPEC-rational-ratio.md</c> section 4
+    /// ratifies - a cross-check pair, the negative control - the reason says so. That is a
+    /// reader's route from this tool into the spec, and it is the reason these are worth reading
+    /// rather than a second copy of the grammar.
+    /// </para>
+    /// <para>
+    /// <b>Every command here is asserted through the parser everything else uses.</b> Hand-written
+    /// examples rot the moment a provider is renamed, and an example that no longer runs is worse
+    /// than no example. The selectors are held apart from the command name so a test can put them
+    /// through <see cref="Selector"/> and, for a walk, through the same resolve-to-one-that-builds
+    /// check the walk itself applies. The reason beside them is deliberately NOT derived: it is
+    /// editorial, it is the half a generator could not write, and holding it in the same row is
+    /// what stops it drifting away from the command it explains.
+    /// </para>
+    /// </remarks>
+    public static (string Command, string[] Selectors, string Reason)[] Examples { get; } =
+    [
+        (CompareCommand, [],
+            "the whole bench set - section 4's pairs and controls at once"),
+        (CompareCommand, ["zeta:3"],
+            "every method for zeta(3): one target, four costs"),
+        (CompareCommand, ["pi/leibniz", "pi/machin"],
+            "section 4's first cross-check pair - they share no code"),
+        (CompareCommand, ["zeta:3/central", "zeta:3/borwein"],
+            "section 4's second cross-check pair, on the target itself"),
+        (CompareCommand, ["sqrt:2/newton", "sqrt:3/newton"],
+            "section 4's negative control - two irrationals, irrational ratio"),
+        (StepCommand, ["sqrt:2/newton"],
+            "quadratic convergence, doubling the digits it pins each step"),
+        (StepCommand, ["zeta:3/borwein"],
+            "a loose bound tightening - watch realised/claimed fall"),
+        (StepCommand, ["zeta:2/direct"],
+            "a stop rule ending a walk rather than a target being met"),
+    ];
+
     private static int Main(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -41,12 +91,12 @@ internal static class Program
 
         string[] selectors = args[1..];
 
-        if (string.Equals(args[0], "compare", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(args[0], CompareCommand, StringComparison.OrdinalIgnoreCase))
         {
             return MethodComparison.Compare(selectors);
         }
 
-        if (string.Equals(args[0], "step", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(args[0], StepCommand, StringComparison.OrdinalIgnoreCase))
         {
             return InteractiveWalk.Walk(selectors);
         }
@@ -74,13 +124,8 @@ internal static class Program
         Console.Error.WriteLine($"  {Selector.Shape}");
         Console.Error.WriteLine();
         Console.Error.WriteLine("  omit /<method> and it names every method for that constant. Both commands");
-        Console.Error.WriteLine("  take zero or more, so a subset is written as several:");
-        Console.Error.WriteLine();
-        Console.Error.WriteLine("    compare                              the bench set");
-        Console.Error.WriteLine("    compare zeta:3                       every method for zeta(3)");
-        Console.Error.WriteLine("    compare zeta:3/central zeta:3/euler  exactly those two");
-        Console.Error.WriteLine("    compare pi/machin sqrt:2/newton      across constants");
-        Console.Error.WriteLine("    step zeta:3/central                  the walk");
+        Console.Error.WriteLine("  take zero or more, so a subset is written as several - see 'worth running'");
+        Console.Error.WriteLine("  at the foot of this screen.");
         Console.Error.WriteLine();
         Console.Error.WriteLine("  a parameter is required where a constant has one and refused where it has");
         Console.Error.WriteLine("  none. Whether a provider accepts a given parameter is the provider's own");
@@ -120,5 +165,34 @@ internal static class Program
         Console.Error.WriteLine();
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  {Catalogue.Recipes.Length} pairings in all, over {Catalogue.Constants.Length} constants."));
+        Console.Error.WriteLine();
+
+        WriteExamples();
+    }
+
+    /// <summary>Writes the annotated examples, aligned to the widest command line among them.</summary>
+    /// <remarks>
+    /// Last on the screen deliberately. The reasons name section 4's cross-check pairs and its
+    /// negative control, which the block above has just introduced, and a usage screen is better
+    /// closed with something to run than with a count.
+    /// </remarks>
+    private static void WriteExamples()
+    {
+        string[] commands =
+        [
+            .. Examples.Select(e => string.Join(" ", [e.Command, .. e.Selectors])),
+        ];
+
+        int width = commands.Max(c => c.Length);
+
+        Console.Error.WriteLine("worth running");
+        Console.Error.WriteLine();
+
+        for (int i = 0; i < commands.Length; i++)
+        {
+            Console.Error.WriteLine($"  {commands[i].PadRight(width)}   {Examples[i].Reason}");
+        }
+
+        Console.Error.WriteLine();
     }
 }
