@@ -6,16 +6,26 @@ namespace HalHeinrich.Numerics.Experiments;
 /// Entry point for the RealConstants bench's experiments.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Run one by name, or list what is available:
+/// </para>
 /// <code>
 /// dotnet run --project RealConstants.Experiments -- list
 /// dotnet run --project RealConstants.Experiments -- compare &gt; compare.csv
-/// dotnet run --project RealConstants.Experiments -- step zeta:6 euler
+/// dotnet run --project RealConstants.Experiments -- compare zeta:3/central zeta:3/euler
+/// dotnet run --project RealConstants.Experiments -- step zeta:3/central
 /// </code>
+/// <para>
+/// Both experiments take zero or more selectors and neither parses them itself:
+/// <see cref="Selector"/> owns the grammar, so "which method" has one spelling rather than one
+/// per command. This entry point identifies the command and hands the rest of the line over.
+/// </para>
+/// <para>
 /// Nothing here has a pass or a fail, so the exit code says only whether the named experiment was
 /// found and ran to completion. <c>../AGENTS.md</c> § Exactness discipline is explicit that a
 /// long run printing a table must not masquerade as a test, and these depend on wall-clock time,
 /// which a test may not.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -29,32 +39,19 @@ internal static class Program
             return args.Length > 0 ? 0 : 2;
         }
 
+        string[] selectors = args[1..];
+
         if (string.Equals(args[0], "compare", StringComparison.OrdinalIgnoreCase))
         {
-            return args.Length switch
-            {
-                1 => MethodComparison.Compare(null),
-                2 => MethodComparison.Compare(args[1]),
-                _ => Misuse("usage: compare [<constant>], e.g. compare zeta:2"),
-            };
+            return MethodComparison.Compare(selectors);
         }
 
         if (string.Equals(args[0], "step", StringComparison.OrdinalIgnoreCase))
         {
-            return args.Length == 3
-                ? InteractiveWalk.Walk(args[1], args[2])
-                : Misuse("usage: step <constant> <method>, e.g. step zeta:6 euler");
+            return InteractiveWalk.Walk(selectors);
         }
 
-        return Misuse($"no experiment named '{args[0]}' - try 'list'.");
-    }
-
-    /// <summary>Reports a usage problem and returns the exit code the runner uses for one.</summary>
-    /// <param name="message">What was wrong.</param>
-    /// <returns>2.</returns>
-    private static int Misuse(string message)
-    {
-        Console.Error.WriteLine(message);
+        Console.Error.WriteLine($"no experiment named '{args[0]}' - try 'list'.");
         return 2;
     }
 
@@ -64,14 +61,31 @@ internal static class Program
         Console.Error.WriteLine("or whose cost is the thing being measured. No pass, no fail.");
         Console.Error.WriteLine("Data goes to stdout; labels and progress go to stderr.");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("usage: dotnet run --project RealConstants.Experiments -- <name> [args]");
+        Console.Error.WriteLine("usage: dotnet run --project RealConstants.Experiments -- <name> [selector ...]");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("  compare [<constant>]      every method for a constant, walked to a set of");
-        Console.Error.WriteLine("                            error targets; steps, seconds, bound, stop rule.");
-        Console.Error.WriteLine("                            With no constant, the whole bench set.");
-        Console.Error.WriteLine("  step <constant> <method>  walk one method one step at a time");
+        Console.Error.WriteLine("  compare [selector ...]  every selected method walked to a set of error");
+        Console.Error.WriteLine("                          targets; steps, seconds, bound, stop rule.");
+        Console.Error.WriteLine("                          With no selector, the whole bench set.");
+        Console.Error.WriteLine("  step <selector>         walk one method one step at a time. The selection");
+        Console.Error.WriteLine("                          must come to exactly one method.");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("a constant is written <name> or <name>:<parameter>");
+        Console.Error.WriteLine("selectors");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  a selector is  <constant>[:<parameter>][/<method>]");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  omit /<method> and it names every method for that constant. Both commands");
+        Console.Error.WriteLine("  take zero or more, so a subset is written as several:");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("    compare                              the bench set");
+        Console.Error.WriteLine("    compare zeta:3                       every method for zeta(3)");
+        Console.Error.WriteLine("    compare zeta:3/central zeta:3/euler  exactly those two");
+        Console.Error.WriteLine("    compare pi/machin sqrt:2/newton      across constants");
+        Console.Error.WriteLine("    step zeta:3/central                  the walk");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  a parameter is required where a constant has one and refused where it has");
+        Console.Error.WriteLine("  none. Whether a provider accepts a given parameter is the provider's own");
+        Console.Error.WriteLine("  rule, so sqrt:4/newton is a valid selector that fails when it is built,");
+        Console.Error.WriteLine("  with that provider's explanation rather than a guess made here.");
         Console.Error.WriteLine();
 
         foreach (ConstantNote note in Catalogue.Constants)
@@ -85,7 +99,7 @@ internal static class Program
             {
                 Console.Error.WriteLine($"      {recipe.Method,-8}  {recipe.Summary}   [{recipe.Provider}]");
                 Console.Error.WriteLine($"                accepts    {recipe.Domain}");
-                Console.Error.WriteLine($"                identity   {recipe.Identity}");
+                Console.Error.WriteLine($"                identity   {recipe.Identity(0)}");
                 Console.Error.WriteLine($"                step       {recipe.StepMeaning}");
                 Console.Error.WriteLine($"                cadence    {recipe.Cadence}");
             }
@@ -104,8 +118,7 @@ internal static class Program
         Console.Error.WriteLine("                    through pi, which is what stops those being tautologies");
         Console.Error.WriteLine("  zeta:3            the target, and the second cross-check pair");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("  examples:  step pi machin     step zeta:3 borwein     step sqrt:2 newton");
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"             compare zeta:2     compare     ({Catalogue.Recipes.Length} pairings in all)"));
+            $"  {Catalogue.Recipes.Length} pairings in all, over {Catalogue.Constants.Length} constants."));
     }
 }

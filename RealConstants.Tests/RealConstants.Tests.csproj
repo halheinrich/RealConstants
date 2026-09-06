@@ -34,8 +34,20 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!--
+    RealConstants.Experiments is referenced so its selector grammar can be
+    tested. That project is an Exe and has no pass or fail of its own, but the
+    parser inside it is deterministic code with a known answer, which is what
+    AGENTS.md section Exactness discipline actually separates a test from an
+    experiment by - not which project a type happens to live in.
+
+    A side effect worth having: before this, `dotnet test` did not build
+    RealConstants.Experiments at all, so a green suite said nothing about
+    whether that project still compiled. Now it does.
+  -->
   <ItemGroup>
     <ProjectReference Include="..\RealConstants\RealConstants.csproj" />
+    <ProjectReference Include="..\RealConstants.Experiments\RealConstants.Experiments.csproj" />
   </ItemGroup>
 
 </Project>

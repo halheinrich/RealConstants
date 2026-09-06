@@ -25,7 +25,11 @@ internal sealed record ConstantNote(
 /// <param name="Method">The method's command-line name.</param>
 /// <param name="Provider">The implementing type, for anyone wanting the proof.</param>
 /// <param name="Summary">A phrase naming the scheme.</param>
-/// <param name="Identity">The identity or iteration it computes.</param>
+/// <param name="Identity">
+/// The identity or iteration it computes, given the parameter - or zero for the generic form
+/// the listing shows. A row whose formula does not vary ignores the argument; the
+/// central-binomial row cannot, because its coefficient differs per order and s = 3 alternates.
+/// </param>
 /// <param name="StepMeaning">What the step index counts.</param>
 /// <param name="Cadence">Roughly what a step buys.</param>
 /// <param name="Domain">Which parameters it accepts, in prose. The provider is the authority.</param>
@@ -35,7 +39,7 @@ internal sealed record Recipe(
     string Method,
     string Provider,
     string Summary,
-    string Identity,
+    Func<int, string> Identity,
     string StepMeaning,
     string Cadence,
     string Domain,
@@ -87,7 +91,7 @@ internal static class Catalogue
     [
         new("pi", "leibniz", nameof(LeibnizPi),
             "the Gregory-Leibniz series",
-            "pi/4 = 1 - 1/3 + 1/5 - 1/7 + ...",
+            _ => "pi/4 = 1 - 1/3 + 1/5 - 1/7 + ...",
             "step n is the partial sum over k = 0..n",
             "one decimal digit per tenfold increase in steps - a control, not a workhorse",
             "no parameter",
@@ -95,7 +99,7 @@ internal static class Catalogue
 
         new("pi", "machin", nameof(MachinPi),
             "Machin's formula",
-            "pi/4 = 4*arctan(1/5) - arctan(1/239), each arctangent from its Maclaurin series",
+            _ => "pi/4 = 4*arctan(1/5) - arctan(1/239), each arctangent from its Maclaurin series",
             "step n takes terms k = 0..n of both series",
             "about 1.4 decimal digits per step",
             "no parameter",
@@ -103,7 +107,10 @@ internal static class Catalogue
 
         new("sqrt", "newton", nameof(NewtonSquareRoot),
             "Newton's method from above",
-            "x_(n+1) = (x_n + c/x_n)/2, from x_0 = ceiling(sqrt(c))",
+            radicand => radicand > 0
+                ? FormattableString.Invariant(
+                    $"x_(n+1) = (x_n + {radicand}/x_n)/2, from x_0 = ceiling(sqrt({radicand}))")
+                : "x_(n+1) = (x_n + c/x_n)/2, from x_0 = ceiling(sqrt(c))",
             "step n is the iterate x_n",
             "quadratic - each step roughly squares the accuracy",
             "any non-square integer of at least 2",
@@ -111,7 +118,13 @@ internal static class Catalogue
 
         new("zeta", "central", nameof(CentralBinomialZeta),
             "the central-binomial series",
-            "zeta(s) = c_s * sum over k >= 1 of (+/-) 1/(k^s * C(2k,k)), c_s = 3, 5/2, 36/17",
+            order => order switch
+            {
+                2 => "zeta(2) = 3 * sum over k >= 1 of 1/(k^2 * C(2k,k))",
+                3 => "zeta(3) = (5/2) * sum over k >= 1 of (-1)^(k-1) / (k^3 * C(2k,k))",
+                4 => "zeta(4) = (36/17) * sum over k >= 1 of 1/(k^4 * C(2k,k))",
+                _ => "zeta(s) = c_s * sum over k >= 1 of (+/-) 1/(k^s * C(2k,k)), c_s = 3, 5/2, 36/17",
+            },
             "step n is the partial sum over k = 1..n+1",
             "about 0.6 decimal digits per step",
             "s = 2, 3 or 4",
@@ -119,8 +132,11 @@ internal static class Catalogue
 
         new("zeta", "euler", nameof(EulerMaclaurinZeta),
             "Euler-Maclaurin summation",
-            "zeta(s) = sum over k < N of k^-s + N^(1-s)/(s-1) + N^-s/2 "
-            + "+ sum over j of (B_2j/(2j)!) * (s)_(2j-1) * N^(1-s-2j)",
+            // One formula in s, and it stays in s. Substituting the order into the left side
+            // alone gives "zeta(6) = ... k^-s ...", which reads as though the two sides were
+            // about different things; the order is on the line above in the walk's header.
+            _ => "zeta(s) = sum over k < N of k^-s + N^(1-s)/(s-1) + N^-s/2 "
+                 + "+ sum over j of (B_2j/(2j)!) * (s)_(2j-1) * N^(1-s-2j)",
             "step n uses N = n+2 exact terms, the correction count chosen to minimise the bound",
             "about 2.75 decimal digits per step",
             "s >= 2",
@@ -128,7 +144,7 @@ internal static class Catalogue
 
         new("zeta", "borwein", nameof(BorweinZetaThree),
             "Chebyshev acceleration of the alternating zeta",
-            "zeta(3) = (4/3)*eta(3), eta(3) recombined with the weights of T_m(2x-1)",
+            _ => "zeta(3) = (4/3)*eta(3), eta(3) recombined with the weights of T_m(2x-1)",
             "step n uses the Chebyshev polynomial of degree m = n+1",
             "about 0.77 decimal digits per step",
             "s = 3 only",
@@ -139,8 +155,8 @@ internal static class Catalogue
 
         new("zeta", "direct", nameof(DirectSumZeta),
             "direct summation of the definition",
-            "zeta(s) = sum over k >= 1 of 1/k^s, tail bracketed by "
-            + "(N+1)^(1-s)/(s-1) < tail < N^(1-s)/(s-1)",
+            _ => "zeta(s) = sum over k >= 1 of 1/k^s, tail bracketed by "
+                 + "(N+1)^(1-s)/(s-1) < tail < N^(1-s)/(s-1)",
             "step n is the partial sum over k = 1..n+1",
             "the bound falls like N^-s, so a decimal digit costs a factor of 10^(1/s) in N "
             + "- about 3.2x at s = 2, 1.5x at s = 6",
@@ -194,25 +210,63 @@ internal static class Catalogue
     /// </summary>
     /// <param name="recipe">The recipe.</param>
     /// <param name="parameter">The parameter, or zero when the constant takes none.</param>
+    /// <param name="refusal">The provider's own words when it declines, otherwise empty.</param>
     /// <returns>The provider, or <see langword="null"/> if it has no member there.</returns>
     /// <remarks>
     /// The refusal is the provider's, not this table's: a radicand that is a perfect square or an
     /// order the central-binomial family has no member for is a fact about the mathematics, and
     /// each provider already carries it in a guard with the reasoning attached. Asking by
-    /// construction keeps that single-sourced.
+    /// construction keeps that single-sourced, and passing the exception's message back keeps the
+    /// user reading that guard rather than a paraphrase of it.
     /// </remarks>
-    public static IRealConstant? TryCreate(Recipe recipe, int parameter)
+    public static IRealConstant? TryCreate(Recipe recipe, int parameter, out string refusal)
     {
         ArgumentNullException.ThrowIfNull(recipe);
+        refusal = string.Empty;
 
         try
         {
             return recipe.Create(parameter);
         }
-        catch (ArgumentOutOfRangeException)
+        catch (ArgumentOutOfRangeException refused)
         {
+            refusal = Explain(refused);
             return null;
         }
+    }
+
+    /// <summary>Recovers a provider's own message from the exception it raised.</summary>
+    /// <param name="refused">The exception.</param>
+    /// <returns>The message the provider wrote, without the runtime's additions.</returns>
+    /// <remarks>
+    /// <see cref="ArgumentOutOfRangeException"/> appends the parameter name and the actual value,
+    /// both of which the caller already knows and neither of which reads well on a console. They
+    /// are removed by their known shapes - a trailing <c>(Parameter '...')</c> and everything from
+    /// the first line break - and not by cutting at the first bracket. Cutting at the bracket is
+    /// what this did first, and it truncated CentralBinomialZeta's refusal to "The central-binomial
+    /// series for zeta", because that message legitimately contains "zeta(s)". A text match that
+    /// answers a different question than the one asked, returning something plausible rather than
+    /// an error, is exactly what AGENTS.md section Reliability clause (f) is about; the test that
+    /// caught it is in CatalogueTests.
+    /// </remarks>
+    private static string Explain(ArgumentOutOfRangeException refused)
+    {
+        string message = refused.Message;
+
+        int line = message.IndexOf('\n', StringComparison.Ordinal);
+        if (line >= 0)
+        {
+            message = message[..line];
+        }
+
+        string suffix = $"(Parameter '{refused.ParamName}')";
+        int at = message.LastIndexOf(suffix, StringComparison.Ordinal);
+        if (at >= 0)
+        {
+            message = message[..at];
+        }
+
+        return message.Trim();
     }
 
     /// <summary>Renders a constant with its parameter, for a heading.</summary>
@@ -225,80 +279,6 @@ internal static class Catalogue
         return note is null
             ? constant
             : string.Format(CultureInfo.InvariantCulture, note.Title, parameter);
-    }
-
-    /// <summary>How a constant is written on the command line.</summary>
-    /// <param name="constant">The constant's name.</param>
-    /// <param name="parameter">The parameter, or zero when it takes none.</param>
-    /// <returns><c>pi</c>, or <c>zeta:3</c>.</returns>
-    public static string Spell(string constant, int parameter)
-    {
-        ConstantNote? note = FindConstant(constant);
-        return note is null || note.Parameter.Length == 0
-            ? constant
-            : string.Create(CultureInfo.InvariantCulture, $"{constant}:{parameter}");
-    }
-
-    /// <summary>
-    /// Parses a target such as <c>pi</c>, <c>zeta:3</c> or <c>sqrt:2</c>.
-    /// </summary>
-    /// <param name="text">The text as typed.</param>
-    /// <param name="constant">Set to the constant's name.</param>
-    /// <param name="parameter">Set to the parameter, or zero when the constant takes none.</param>
-    /// <param name="problem">Set to what is wrong when parsing fails.</param>
-    /// <returns><see langword="true"/> if the text names a constant this bench knows.</returns>
-    /// <remarks>
-    /// One shape for every constant - <c>name</c> or <c>name:parameter</c> - so the command line
-    /// has uniform arity whether or not a constant is parameterised. A parameter supplied to a
-    /// constant that takes none is an error rather than something quietly ignored.
-    /// </remarks>
-    public static bool TryParseTarget(
-        string text, out string constant, out int parameter, out string problem)
-    {
-        constant = string.Empty;
-        parameter = 0;
-        problem = string.Empty;
-
-        string[] parts = (text ?? string.Empty).Split(':');
-        if (parts.Length > 2)
-        {
-            problem = "a target is <constant> or <constant>:<parameter>";
-            return false;
-        }
-
-        ConstantNote? note = FindConstant(parts[0]);
-        if (note is null)
-        {
-            problem = $"no constant named '{parts[0]}'";
-            return false;
-        }
-
-        constant = note.Name;
-
-        if (note.Parameter.Length == 0)
-        {
-            if (parts.Length == 2)
-            {
-                problem = $"{note.Name} takes no parameter";
-                return false;
-            }
-
-            return true;
-        }
-
-        if (parts.Length != 2)
-        {
-            problem = $"{note.Name} needs a parameter - {note.Parameter}, as in {note.Name}:2";
-            return false;
-        }
-
-        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out parameter))
-        {
-            problem = $"'{parts[1]}' is not an integer";
-            return false;
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -334,8 +314,8 @@ internal static class Catalogue
         Recipe recipe = Find(constant, note.OracleMethod)
             ?? throw new InvalidOperationException($"No oracle recipe for {constant}.");
 
-        IRealConstant oracle = TryCreate(recipe, parameter)
-            ?? throw new InvalidOperationException($"The oracle refused {Spell(constant, parameter)}.");
+        IRealConstant oracle = TryCreate(recipe, parameter, out _)
+            ?? throw new InvalidOperationException($"The oracle refused {Selector.Spell(constant, parameter)}.");
 
         string description = string.Create(CultureInfo.InvariantCulture,
             $"{recipe.Method} at step {depth}");

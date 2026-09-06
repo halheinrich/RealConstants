@@ -28,4 +28,19 @@
     <ProjectReference Include="..\RealConstants\RealConstants.csproj" />
   </ItemGroup>
 
+  <!--
+    The selector grammar is ordinary deterministic code and is unit-tested, so
+    the test project needs to see it. Everything here is internal, matching
+    RationalApproximation's arrangement for the same reason: the types are an
+    implementation of this runner, not a surface anything else may build on.
+
+    Testing a string parser does not make this a test project. AGENTS.md
+    section Exactness discipline separates them by whether a run has a known
+    answer and whether it depends on wall-clock time; the parser has one and
+    does not.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="RealConstants.Tests" />
+  </ItemGroup>
+
 </Project>

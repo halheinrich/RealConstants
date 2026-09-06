@@ -113,6 +113,12 @@
         "dependencies": {
           "RationalApproximation": "[1.0.0, )"
         }
+      },
+      "realconstants.experiments": {
+        "type": "Project",
+        "dependencies": {
+          "RealConstants": "[1.0.0, )"
+        }
       }
     }
   }

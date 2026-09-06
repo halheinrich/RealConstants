@@ -26,38 +26,65 @@ internal static class InteractiveWalk
     private const int ValuePlaces = 40;
 
     /// <summary>Walks one method for one constant.</summary>
-    /// <param name="target">The constant, as <c>pi</c> or <c>zeta:3</c>.</param>
-    /// <param name="method">The method's command-line name.</param>
-    /// <returns>Zero on a completed walk, two on a usage problem.</returns>
-    public static int Walk(string target, string method)
+    /// <param name="selectors">
+    /// The selectors as typed. They must together name exactly one method: a walk is one
+    /// sequence of refinements, and there is no sensible reading of two.
+    /// </param>
+    /// <returns>Zero on a completed walk, two on a selection that does not resolve to one.</returns>
+    public static int Walk(string[] selectors)
     {
-        if (!Catalogue.TryParseTarget(target, out string name, out int parameter, out string problem))
+        ArgumentNullException.ThrowIfNull(selectors);
+
+        if (selectors.Length == 0)
         {
-            Console.Error.WriteLine($"{problem} - try 'list'.");
+            Console.Error.WriteLine("step needs a selector, e.g. step zeta:3/central - try 'list'.");
             return 2;
         }
 
-        Recipe? recipe = Catalogue.Find(name, method);
-        if (recipe is null)
+        if (!Selector.TryParseAll(selectors, out Choice[] choices, out string error))
         {
-            string available = string.Join(", ", Catalogue.For(name).Select(r => r.Method));
-            Console.Error.WriteLine($"no method '{method}' for {name} - available: {available}");
+            Console.Error.WriteLine($"{error} - try 'list'.");
             return 2;
         }
 
-        IRealConstant? constant = Catalogue.TryCreate(recipe, parameter);
+        if (choices.Length != 1)
+        {
+            // The failure mode the grammar introduces, and the one worth a real sentence: a
+            // constant with no method names all of them, which is right for `compare` and
+            // meaningless here. Naming what was selected, and one way to narrow it, beats
+            // reprinting a usage line the reader has already read.
+            string named = string.Join(", ", choices.Select(Selector.Spell));
+
+            Console.Error.WriteLine(choices.Length == 0
+                ? $"'{string.Join(" ", selectors)}' names no method"
+                : string.Create(CultureInfo.InvariantCulture,
+                    $"'{string.Join(" ", selectors)}' names {choices.Length} methods; pick one, e.g. {Selector.Spell(choices[0])}"));
+
+            if (choices.Length > 1)
+            {
+                Console.Error.WriteLine($"  selected: {named}");
+            }
+
+            return 2;
+        }
+
+        Choice choice = choices[0];
+        string name = choice.Constant;
+        int parameter = choice.Parameter;
+        Recipe recipe = choice.Recipe;
+
+        IRealConstant? constant = Catalogue.TryCreate(recipe, parameter, out string refusal);
         if (constant is null)
         {
-            Console.Error.WriteLine(
-                $"{recipe.Provider} has no member at {Catalogue.Spell(name, parameter)} - it accepts {recipe.Domain}.");
+            Console.Error.WriteLine($"{Selector.Spell(choice)}: {refusal}");
             return 2;
         }
 
         StopRules rules = StopRules.Default;
-        (Approximation oracle, string oracleDescription) = Catalogue.Oracle(name, parameter, method);
+        (Approximation oracle, string oracleDescription) = Catalogue.Oracle(name, parameter, recipe.Method);
 
         Console.Error.WriteLine($"computing {Catalogue.Title(name, parameter)} by {recipe.Summary}");
-        Console.Error.WriteLine($"  {recipe.Identity}");
+        Console.Error.WriteLine($"  {recipe.Identity(parameter)}");
         Console.Error.WriteLine($"  {recipe.StepMeaning}; {recipe.Cadence}   [{recipe.Provider}]");
         Console.Error.WriteLine(
             $"  oracle: {oracleDescription}, half-width {Presentation.Magnitude(oracle.MaxError)}");

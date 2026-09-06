@@ -15,53 +15,58 @@ internal static class MethodComparison
 {
     private static readonly int[] TargetPlaces = [5, 10, 20, 30];
 
-    /// <summary>Runs the comparison over one constant, or over the whole bench set.</summary>
-    /// <param name="target">A constant such as <c>zeta:2</c>, or <see langword="null"/> for all.</param>
-    /// <returns>Zero on a completed run, two on a usage problem.</returns>
-    public static int Compare(string? target)
+    /// <summary>Runs the comparison over the selected methods, or over the whole bench set.</summary>
+    /// <param name="selectors">Zero or more selectors; none means the bench set.</param>
+    /// <returns>Zero on a completed run, two on a selector that does not parse.</returns>
+    public static int Compare(string[] selectors)
     {
-        (string Constant, int Parameter)[] subjects;
+        ArgumentNullException.ThrowIfNull(selectors);
 
-        if (target is null)
+        Choice[] choices;
+
+        if (selectors.Length == 0)
         {
-            subjects = Catalogue.BenchSet;
-        }
-        else
-        {
-            if (!Catalogue.TryParseTarget(target, out string name, out int parameter, out string problem))
+            // The bench set expands through the same grammar everything else uses, rather than
+            // being iterated by a second code path that could drift from it.
+            if (!Selector.TryParseAll(
+                    Catalogue.BenchSet.Select(b => Selector.Spell(b.Constant, b.Parameter)),
+                    out choices,
+                    out string benchError))
             {
-                Console.Error.WriteLine($"{problem} - try 'list'.");
+                Console.Error.WriteLine($"{benchError} - the bench set is malformed, which is a bug here.");
                 return 2;
             }
-
-            subjects = [(name, parameter)];
+        }
+        else if (!Selector.TryParseAll(selectors, out choices, out string error))
+        {
+            Console.Error.WriteLine($"{error} - try 'list'.");
+            return 2;
         }
 
         StopRules rules = StopRules.Default;
 
         Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"stop rules: {rules.MaxSteps} steps, {rules.MaxSeconds:F0} s, {rules.MaxDenominatorBits} denominator bits, per cell"));
+        Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{choices.Length} pairings selected"));
         Console.Error.WriteLine();
 
         Console.WriteLine("constant,method,target,steps,seconds,bound,denominator_bits,outcome");
 
-        foreach ((string name, int parameter) in subjects)
+        foreach (Choice choice in choices)
         {
-            string spelling = Catalogue.Spell(name, parameter);
+            string spelling = Selector.Spell(choice.Constant, choice.Parameter);
+            IRealConstant? constant = Catalogue.TryCreate(choice.Recipe, choice.Parameter, out string refusal);
 
-            foreach (Recipe recipe in Catalogue.For(name))
+            if (constant is null)
             {
-                IRealConstant? constant = Catalogue.TryCreate(recipe, parameter);
-                if (constant is null)
-                {
-                    Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                        $"{spelling},{recipe.Method},-,-,-,-,-,{Field($"no member here; {recipe.Provider} accepts {recipe.Domain}")}"));
-                    continue;
-                }
-
-                Console.Error.WriteLine($"  {spelling} by {recipe.Method} ...");
-                RunOne(spelling, recipe, constant, rules);
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"{spelling},{choice.Recipe.Method},-,-,-,-,-,{Field(refusal)}"));
+                continue;
             }
+
+            Console.Error.WriteLine($"  {Selector.Spell(choice)} ...");
+            RunOne(spelling, choice.Recipe, constant, rules);
         }
 
         return 0;
