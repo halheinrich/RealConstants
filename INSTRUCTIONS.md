@@ -57,9 +57,11 @@ rather than at a later review.
 - **`RealConstants.Tests`** — xUnit. Also holds the oracles the providers are
   checked against, which are part of the design rather than scaffolding:
   `PiReference` (an external value, itself checked), `SquareRootReference` (a
-  computed one, self-verified), `SkewedPi` (the negative control that makes the
-  cross-check falsifiable) and `Enclosures` (the predicates on pairs of
-  enclosures that `Approximation` does not carry).
+  computed one, self-verified), `ZetaThreeReference` (both at once — typed digits
+  for depth, the defining series for independence), `DisplacedConstant` (the
+  negative control that makes a cross-check falsifiable, for any constant) and
+  `Enclosures` (the predicates on pairs of enclosures that `Approximation` does
+  not carry).
 
 ## Architecture
 
@@ -83,9 +85,18 @@ of the contract's wording, not an omission to be worked around.
 
 All are stateless once constructed, so an instance is shareable and
 thread-safe, and each call to `Refinements()` returns an independent sequence.
-The pi pair's constructor is the implicit parameterless one;
-`NewtonSquareRoot`'s takes the radicand, validates it, and computes everything
-its bound depends on there — two integer square roots and no iteration.
+Every constructor is the implicit parameterless one except
+`NewtonSquareRoot`'s, which takes the radicand, validates it, and computes
+everything its bound depends on there — two integer square roots and no
+iteration.
+
+**Incremental is a per-scheme claim, not a blanket one.** Four of the five
+refinements build on the last in full: a running partial sum, running powers, a
+Newton iterate, a running binomial coefficient. `BorweinZetaThree` cannot, and
+says so — its weights depend on the depth, so the recombination is redone every
+step and reaching step *n* is quadratic. That is a property of acceleration
+rather than of the implementation, and it is stated at the type rather than left
+in a profile.
 
 ### The alternating-series bound
 
@@ -126,6 +137,34 @@ whole point, and `W < 1` for every radicand the type accepts. The realised
 bound never exceeds the planned one, so a step chosen from `ErrorBoundAt`
 delivers at least what it promised.
 
+### The two zeta(3) bounds, which are not each other's shape
+
+`AperyZetaThree` is alternating, so it reuses the same remainder estimate the pi
+pair does — but the estimate needs its hypothesis. From
+`C(2k+2,k+1) = C(2k,k)·2(2k+1)/(k+1)`, consecutive terms are in the ratio
+`k³/(2(k+1)²(2k+1))`, whose denominator expands to `4k³ + 10k² + 8k + 2`. That
+exceeds `4k³` for every `k ≥ 1`, so the ratio is strictly below `1/4` and one
+inequality settles both obligations: the terms strictly decrease, and they tend
+to zero at least geometrically. Step *n* omits the term at `k = n+2`, and the
+`5/2` in front scales the bound as well as the value.
+
+`BorweinZetaThree` gets no tail estimate at all, and its bound comes from
+approximation theory. The full derivation is at the type; the load-bearing step
+is that `1/(k+1)³` is a moment of a **non-negative** measure on `[0,1]`, which
+is what lets `max|P|` come out of an integral and leaves
+`|error| ≤ η(3)·max_[0,1]|P| / |P(−1)|` for any polynomial `P`. Chebyshev is
+then the optimal choice rather than a clever one: `T_m(2x−1)` has maximum 1 on
+`[0,1]` and `|T_m(−3)| = T_m(3)`, the integers 3, 17, 99, 577, … from
+`T_(m+1) = 6·T_m − T_(m−1)`.
+
+**That bound is loose, and the looseness grows.** Pulling `max|P|` out of an
+oscillating integral discards the cancellation that is most of why the scheme
+converges: measured against an independent value, the realised error is about
+`0.70` of the claim at step 0 and about `0.009` of it by step 39. Rounding a
+bound up is always permitted, so this is sound — but it decides what a
+falsification test can honestly assert, and § The three kinds of test says what
+that turns out to be.
+
 ### Why the two providers share no code
 
 `LeibnizPi` is the arctangent series at `x = 1`, so one internal helper could
@@ -140,6 +179,12 @@ distinguishes from the same rule encoded twice.
 § Guiding principles: its product is trust, so it stays short enough to audit by
 reading and is not to be made faster.
 
+The same reasoning governs the zeta(3) pair, and more strongly, because the two
+schemes there are not even superficially alike: a binomial-denominator series
+against a Chebyshev recombination. There is no shared helper anyone would be
+tempted to extract, which is a happy accident rather than the protection — the
+protection is the rule.
+
 `NewtonSquareRoot` is the other side of that same rule and looks at first like
 a breach of it: one type serves both `√2` and `√3`, differing only in the
 radicand. Those are two *constants*, though, not two providers of one constant,
@@ -147,6 +192,11 @@ and § 4's ruling forbids only the latter sharing an engine. Splitting the type
 in two would encode a single decision twice, which `../AGENTS.md` § Writing
 code forbids just as squarely. Neither root has a cross-check partner, so there
 is no independence here for a shared engine to compromise.
+
+`DisplacedConstant` is a third case and lands the opposite way. Displacing a
+provider's values while leaving its bound alone is a *single* decision serving
+both pairs, so one type is right and a copy per constant would be the defect.
+The test is why the code would be the same, not whether it looks the same.
 
 ### The three kinds of test, and why none is sufficient alone
 
@@ -165,10 +215,41 @@ is no independence here for a shared engine to compromise.
   every step checked. Where a mutation does *not* break, no falsification test
   is claimed — see § Pitfalls.
 
-`SkewedPi` is the negative control on the cross-check itself: Machin's
-refinements displaced by a stated amount with the bounds left untouched. It is a
-knowingly wrong provider and exists so that a passing cross-check means the
-predicate could have failed.
+`DisplacedConstant` is the negative control on the cross-check itself: a
+provider's refinements displaced by a stated amount with the bounds left
+untouched. It is a knowingly wrong provider and exists so that a passing
+cross-check means the predicate could have failed.
+
+**The zeta(3) pair inverts which assertion carries the weight.** Apéry gains
+about 0.64 decimal digits a step and Borwein about 0.77, so at equal steps their
+bounds stay within a couple of orders of each other. Overlap is therefore a sharp
+test at every pairing, and containment only becomes available deep in the grid —
+where against pi, Machin buries Leibniz within two steps and containment is the
+assertion that matters. A matched pair is worth more: a cross-check can only
+refute a disagreement larger than the two bounds together.
+
+The threshold for containment is measured, not derived from which bound is
+numerically finer. Borwein's bound undercuts Apéry's from step 23, but
+containment against the whole grid holds only from step 29, because containment
+also needs the gap between the two *values* to fit inside the difference of the
+bounds.
+
+**And its falsifications are not uniform, which the tests state rather than
+flatten.** Halving Apéry's bound is refuted at every step checked. Halving
+Borwein's is refuted at step 0 and nowhere deeper, because that bound is loose
+by more than a factor of two from step 1 on. Dropping Apéry's `5/2` from the
+bound fails at once; dropping Borwein's `4/3` from the *value* fails at once;
+dropping Borwein's `4/3` from the *bound* does not fail at all, so that test
+asserts the factor is present and says why it must be — see § Pitfalls.
+
+**The zeta(3) oracle has two forms because neither alone is enough.**
+`ZetaThreeReference` carries the expansion truncated at sixty places, checked by
+two independent deep enclosures the way `PiReference` is checked by one. It also
+carries `FromDefinition(n)`, which encloses ζ(3) from `Σ 1/k³` with the tail
+bracketed by integrals of `x^-3` — `1/(2(N+1)²) < tail < 1/(2N²)`, elementary
+because `x^-3` decreases. That reaches only about nine places, but it shares
+nothing with either provider, so it fixes the leading digits without the mild
+circularity of a string and a provider vouching for each other.
 
 **`NewtonSquareRoot` has only the last two of the three**, and nothing about it
 should be read as a cross-check. There is no second square-root provider and
@@ -204,15 +285,29 @@ public sealed class NewtonSquareRoot : IRealConstant
     public BigRational ErrorBoundAt(int step);          // 2r * W^(2^step)
     public IEnumerable<Approximation> Refinements();
 }
+
+public sealed class AperyZetaThree : IRealConstant
+{
+    public BigRational ErrorBoundAt(int step);          // (5/2)/(k^3*C(2k,k)),
+    public IEnumerable<Approximation> Refinements();    //   where k = step + 2
+}
+
+public sealed class BorweinZetaThree : IRealConstant
+{
+    public BigRational ErrorBoundAt(int step);          // (4/3)/T_m(3),
+    public IEnumerable<Approximation> Refinements();    //   where m = step + 1
+}
 ```
 
-The pi pair's constructors are the implicit parameterless one;
-`NewtonSquareRoot`'s throws `ArgumentOutOfRangeException` on a radicand below
-two or on a perfect square. Every `ErrorBoundAt` throws
-`ArgumentOutOfRangeException` on a negative step. `MachinPi`'s additionally
-throws when `2*step+3` would overflow `int`, which no reachable target error
-can provoke; `NewtonSquareRoot`'s throws above step 30, where the closed form's
-exponent `2^step` stops fitting an `int`.
+Every constructor is the implicit parameterless one except
+`NewtonSquareRoot`'s, which throws `ArgumentOutOfRangeException` on a radicand
+below two or on a perfect square. Every `ErrorBoundAt` throws
+`ArgumentOutOfRangeException` on a negative step. Two add an upper guard and
+three do not. `MachinPi`'s throws when `2*step+3` would overflow `int`, which no
+reachable target error can provoke; `NewtonSquareRoot`'s throws above step 30,
+where the closed form's exponent `2^step` stops fitting an `int`. The zeta(3)
+pair needs neither, because the step index enters only as `step + 2` and
+`step + 1`, both carried in a `long`.
 
 `StepFor(BigRational)` and `ApproximateTo(BigRational)` come from
 `IRealConstant` as default interface members and are reachable only through an
@@ -277,6 +372,25 @@ interface-typed reference.
   evaluates the bound at a step below `2n`, so it can hit the guard while the
   answer sits well inside it. Targets to about `1e-44000` are unaffected.
 
+- **A loose bound is sound but it limits what a test may claim.**
+  `BorweinZetaThree`'s bound discards the cancellation in an oscillating
+  integral, so it overstates the realised error by a factor that grows with the
+  degree. Halving it is refuted at step 0 and nowhere deeper, and dropping the
+  `4/3` from it is never refuted, because the slack already exceeds the factor.
+  Both are asserted the way they actually behave. Writing "halving the bound
+  fails" as a blanket claim, or asserting a falsification that does not happen,
+  would each be worse than asserting nothing.
+
+- **`StepFor`'s bracket assumes a bound *shape*, and the assumption is about
+  bit-length rather than magnitude.** It doubles the step to bracket, so
+  answering "step *n*" evaluates the bound at a step below `2n`. That is a
+  bounded overhead exactly when the bound's bit-length grows at most linearly in
+  the step — measured here at 1.24–1.63× the answer's bits for both zeta(3)
+  providers, across targets from `1e-30` to `1e-2000`. It is *not* bounded for
+  `NewtonSquareRoot`, whose bound needs about `2^step` bits, so the probe costs
+  the square. That is halheinrich/Math#53, and the zeta(3) pair is evidence the
+  default is right for ordinary shapes rather than evidence it needs changing.
+
 - **`Refinements()` is endless.** Every consumer and every test takes a finite
   prefix. A `foreach` without a `Take` does not terminate.
 
@@ -287,10 +401,10 @@ interface-typed reference.
 
 ## Subproject-internal next steps
 
-- **The remaining providers.** Apéry and Borwein for the target, which is
-  `../SPEC-rational-ratio.md` § 4's second cross-check pair. The square roots
-  landed with `NewtonSquareRoot`, so one pair is what is left, and it follows
-  the shape set here.
+- **Every provider `../SPEC-rational-ratio.md` § 4 names now exists.** Both
+  cross-check pairs and the negative control's two roots. Nothing here is
+  waiting on another provider; what comes next consumes these rather than adding
+  to them, and lives in `Zeta`.
 
 - **No `Experiments` project, deliberately.** Runs with no known answer are not
   tests and do not belong in this repository at all; § 4 places them in `Zeta`.

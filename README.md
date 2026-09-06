@@ -67,6 +67,45 @@ three hundred decimal places, self-verified by two integer multiplications —
 which is weaker evidence than a second provider would give, and is described
 that way rather than dressed up.
 
+### ζ(3), from two unrelated schemes
+
+The target, and the second cross-check pair. Neither bound is the π pair's
+alternating-series remainder, and the two are not the same shape as each other:
+
+- **`AperyZetaThree`** — `ζ(3) = (5/2)·Σ (−1)^(k−1)/(k³·C(2k,k))`, published by
+  Hjortnaes in 1953 and the series Apéry used in 1978. This one *is*
+  alternating, so the remainder estimate is available — but only once the terms
+  are shown positive and strictly decreasing, which is the part that gets done
+  rather than assumed. About 0.64 decimal digits per step.
+- **`BorweinZetaThree`** — not a truncated series at all. A weighted
+  recombination of `1/1³ … 1/m³` whose weights come from the Chebyshev
+  polynomial `T_m(2x−1)`, with a bound from approximation theory rather than
+  from a tail. About 0.77 digits per step.
+
+Borwein's derivation is elementary end to end and is written out at the type,
+because a bound of an unfamiliar shape that is merely cited is not one a reader
+can check. In outline: `1/(k+1)³` is a moment of the **non-negative** measure
+`(ln(1/x))²/2 dx` on `[0,1]`, so `η(3)` is one integral; any polynomial `P` with
+`P(−1) ≠ 0` splits that integral into a finite combination of moments plus an
+error carrying `P`; non-negativity lets `max|P|` come out of the error integral,
+leaving `|error| ≤ η(3)·max_[0,1]|P| / |P(−1)|`. That asks for a polynomial small
+on `[0,1]` and large at `−1`, which is the extremal problem Chebyshev solves —
+`max|T_m(2x−1)| = 1` there, while `|T_m(−3)| = T_m(3)` is the integer sequence
+3, 17, 99, 577, … growing like `(3+√8)^m`. With `η(3) < 1` and
+`ζ(3) = (4/3)·η(3)`, the bound is `(4/3)/T_m(3)`.
+
+The two rates are close on purpose. A cross-check between a deep provider and a
+shallow one refutes very little, so a **matched** pair is worth more than a fast
+one paired with a slow one — the opposite balance from the π pair, where Machin
+buries Leibniz within two steps.
+
+Borwein's bound is proven but **not tight**, and the repository says so: pulling
+`max|P|` out of an oscillating integral discards the cancellation that is most of
+why the scheme works, so the realised error falls from about 0.70 of the claim at
+step 0 to about 0.009 by step 39. Loose is permitted and short is not — but it
+limits what a falsification test may claim, and the tests assert the limit rather
+than papering over it.
+
 ## Projects
 
 - `RealConstants` — main library
