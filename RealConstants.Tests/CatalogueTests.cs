@@ -10,9 +10,9 @@ namespace HalHeinrich.Numerics.Tests;
 /// <remarks>
 /// <para>
 /// The catalogue restates each method's identity and cadence as runtime strings, duplicating what
-/// the providers' XML documentation says. That was accepted deliberately - documentation is not
-/// reachable at run time, and a description member on <c>IRealConstant</c> would be a leak into a
-/// ratified contract - so what can be gated is gated here.
+/// the providers' XML documentation says. <see cref="Catalogue"/>'s remarks hold the ruling that
+/// accepted that, with its reason and the alternative it rejected; what can be gated is gated
+/// here.
 /// </para>
 /// <para>
 /// <b>What is decidable is the domain.</b> Each row states in prose which parameters its provider

@@ -99,7 +99,7 @@ internal static class MethodComparison
     /// <para>
     /// Where the walk is finer than the oracle both fields say so instead, for the reasons
     /// <see cref="Runner.Realised"/> gives - including why this file repeats the phrase in the
-    /// ratio field where the walk prints a dash.
+    /// ratio field where the walk prints <see cref="Presentation.PastOracleRatio"/>.
     /// </para>
     /// </remarks>
     private static string Realised(Approximation reached, Approximation oracle)

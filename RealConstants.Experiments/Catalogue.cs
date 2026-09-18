@@ -65,6 +65,24 @@ internal sealed record Recipe(
 /// provider to the bench is one row here and no other edit.
 /// </para>
 /// <para>
+/// <b>Identity and cadence are copied from the providers' XML documentation, and that is
+/// ruled, not overlooked</b> (umbrella, 2026-09-05). <c>list</c> and the walk's header print both
+/// at run time, and XML documentation is not reachable then. The one way to single-source them
+/// is a description member on <see cref="IRealConstant"/> that each provider fills in - which
+/// was considered and rejected, because it is the leak of an experiment's convenience into a
+/// ratified contract that this project was told to refuse, and that the last paragraph of these
+/// remarks holds the line against. So <c>../AGENTS.md</c> section Writing code's rule to
+/// single-source a rule or decision is not to be satisfied here by moving these strings into
+/// the providers. Where a copy cannot be removed, that rule's own answer applies: reword one
+/// side, then run <c>../tools/check-echo.sh</c> to find the other.
+/// </para>
+/// <para>
+/// The acceptance is exactly that wide. <b>Identity</b> and <b>cadence</b> are copied; the
+/// <b>domain</b> is not, as the next paragraph says. A cadence figure keeps its number and
+/// names the test that measures it in <c>CadenceTest</c> (ruled 2026-09-06), and
+/// <c>CatalogueTests</c> gates the parts of this that are decidable.
+/// </para>
+/// <para>
 /// <b>Domain rules are not copied into this table.</b> Which radicands
 /// <see cref="NewtonSquareRoot"/> accepts, and which orders <see cref="CentralBinomialZeta"/>
 /// has members for, are facts each provider already owns and validates - so

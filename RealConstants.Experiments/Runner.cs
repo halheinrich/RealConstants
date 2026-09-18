@@ -143,9 +143,9 @@ internal static class Runner
     /// <para>
     /// <b>How each renders it differs, deliberately.</b> Both print
     /// <see cref="Presentation.PastOracle"/> where the realised error would go. For the ratio the
-    /// walk prints <c>-</c>, beside that phrase on the same row, so the reason is already on
-    /// screen; <c>compare</c>'s CSV repeats the phrase, because in that file <c>-</c> already
-    /// means a target not attempted or a pairing that would not build.
+    /// walk prints <see cref="Presentation.PastOracleRatio"/>, beside that phrase on the same row,
+    /// so the reason is already on screen; <c>compare</c>'s CSV repeats the phrase, because in
+    /// that file <c>-</c> already means a target not attempted or a pairing that would not build.
     /// </para>
     /// </remarks>
     public static BigRational? Realised(Approximation reached, Approximation oracle) =>

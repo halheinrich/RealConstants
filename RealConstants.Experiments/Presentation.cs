@@ -33,6 +33,19 @@ internal static class Presentation
     /// </summary>
     public const string PastOracle = "past oracle";
 
+    /// <summary>
+    /// What the walk's realised/claimed cell says on a row whose realised error reads
+    /// <see cref="PastOracle"/>.
+    /// </summary>
+    /// <remarks>
+    /// Read by the row and by the help screen's sentence about that row, which is the point: while
+    /// the two each stated it, the help screen described a row the walk never printed, and it took
+    /// a person at the keys on 2026-09-17 to see it. It is not <c>compare</c>'s <c>-</c>, which
+    /// shares the glyph and not the meaning; <see cref="Runner.Realised"/> says what that one
+    /// means, and why <c>compare</c> repeats <see cref="PastOracle"/> instead.
+    /// </remarks>
+    public const string PastOracleRatio = "-";
+
     /// <summary>Renders an exact rational to a fixed number of decimal places, truncated.</summary>
     /// <param name="value">The value.</param>
     /// <param name="places">How many places to show.</param>

@@ -88,9 +88,12 @@ namespace HalHeinrich.Numerics;
 /// <b>About 2.7 decimal digits per step</b>, measured 2.746 for s = 2, 4 and 6 alike, which is
 /// <c>log10(e^(2*pi))</c> - the classical accuracy of an optimally truncated Euler-Maclaurin.
 /// That makes this much the fastest provider here, and it is why the exact partial sum stays
-/// cheap: <c>N</c> reaches only about 25 for sixty digits, so the sum carries
-/// <c>lcm(1..25)</c> rather than anything alarming. The measured cost sits in the Bernoulli
-/// numbers instead, of which the minimiser needs about <c>pi*N</c>.
+/// cheap: sixty places take <c>N = 23</c> for s = 2, 4 and 6 alike, which is step 21 and is
+/// pinned by
+/// <c>EulerMaclaurinZetaTests.ErrorBoundAt_TendsToZero_AtRoughlyTwoAndThreeQuarterDigitsPerStep</c>.
+/// The sum runs over <c>k &lt; N</c>, so its denominator divides <c>lcm(1..22)^s</c> - the power
+/// grows with the order, and nothing about it is alarming. The measured cost sits in the
+/// Bernoulli numbers instead, of which the minimiser needs about <c>pi*N</c>.
 /// </para>
 /// <para>
 /// <b>The bound is tight to within a factor of two</b> at the minimising M: measured

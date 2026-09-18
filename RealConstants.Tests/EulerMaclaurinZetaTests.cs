@@ -116,6 +116,12 @@ public class EulerMaclaurinZetaTests
         Assert.Equal(10, four.StepFor(TenToTheMinus(30)));
         Assert.Equal(10, six.StepFor(TenToTheMinus(30)));
 
+        // Sixty places at N = 23, which EulerMaclaurinZeta's remarks cite for the size of the
+        // exact partial sum.
+        Assert.Equal(21, two.StepFor(TenToTheMinus(60)));
+        Assert.Equal(21, four.StepFor(TenToTheMinus(60)));
+        Assert.Equal(21, six.StepFor(TenToTheMinus(60)));
+
         Assert.True(two.ErrorBoundAt(10) <= TenToTheMinus(30));
         Assert.True(two.ErrorBoundAt(9) > TenToTheMinus(30));
     }

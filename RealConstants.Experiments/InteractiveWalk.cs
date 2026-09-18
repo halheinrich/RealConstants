@@ -153,7 +153,8 @@ internal static class InteractiveWalk
             TimeSpan stepCost = perStep.Elapsed;
 
             // Null once the walk is finer than its oracle; Runner.Realised says why no figure is
-            // shown then, and why the ratio reads "-" here where compare repeats the phrase.
+            // shown then, and why the ratio reads Presentation.PastOracleRatio here where compare
+            // repeats the phrase.
             BigRational? realised = Runner.Realised(refinement, oracle);
 
             double digits = -Presentation.DecimalExponent(refinement.MaxError);
@@ -162,7 +163,7 @@ internal static class InteractiveWalk
                 $"{step} | {Presentation.Earned(refinement, ValuePlaces)} | " +
                 $"{Presentation.Magnitude(refinement.MaxError)} | " +
                 $"{(realised is { } error ? Presentation.Magnitude(error) : Presentation.PastOracle)} | " +
-                $"{(realised is { } share ? Presentation.Ratio(share, refinement.MaxError) : "-")} | " +
+                $"{(realised is { } share ? Presentation.Ratio(share, refinement.MaxError) : Presentation.PastOracleRatio)} | " +
                 $"{digits - previousDigits:F2} | {Runner.DenominatorBits(refinement)} | " +
                 $"{stepCost.TotalMicroseconds:F0}"));
 
@@ -170,11 +171,11 @@ internal static class InteractiveWalk
             step++;
 
             // The fifth stop rule, and the one this walk hits first on a converging method. Past
-            // here the columns a reader walks for are fixed: realised reads "past oracle", its
-            // ratio "-", and the value column has already reached its cap, so only the bound and
-            // the costs move, endlessly. A run of zeta:3/central produced such rows to step 4565
-            // before this existed. Nothing was wrong with any of them; there was just nothing left
-            // to read.
+            // here the columns a reader walks for are fixed: realised reads Presentation.PastOracle,
+            // its ratio Presentation.PastOracleRatio, and the value column has already reached its
+            // cap, so only the bound and the costs move, endlessly. A run of zeta:3/central
+            // produced such rows to step 4565 before this existed. Nothing was wrong with any of
+            // them; there was just nothing left to read.
             if (realised is null)
             {
                 reason = StopReason.OracleLimit;
@@ -471,7 +472,8 @@ internal static class InteractiveWalk
 
         Console.Error.WriteLine();
         Console.Error.WriteLine(
-            $"    realised reads \"{Presentation.PastOracle}\" and its ratio \"-\" on the last row of a walk");
+            $"    realised reads \"{Presentation.PastOracle}\" and its ratio \"{Presentation.PastOracleRatio}\" " +
+            "on the last row of a walk");
         Console.Error.WriteLine("    that outran its oracle, because from there the oracle cannot resolve the error");
         Console.Error.WriteLine();
         Console.Error.WriteLine("    a single us reading is noisy at this scale - read the trend, not the row");

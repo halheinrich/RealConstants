@@ -533,10 +533,16 @@ interface-typed reference.
 
 - **Direct summation's ceiling is the denominator, not the term count.** In
   exact rationals the partial sum's denominator divides `lcm(1..N)^s`, which
-  grows exponentially in `N`. Measured: ζ(2) reaches about `1e−8` in 12951
-  steps and 37 kilobits before ten seconds are up, and never gets near `1e−10`.
-  Steps and seconds are proxies for that; bits is the thing itself, which is why
-  the experiments project has a bit-length stop rule.
+  grows exponentially in `N`. For ζ(2) at `N = 12,951` terms the bound is
+  `2.98e−9` and the value's denominator 37,381 bits; the bound first reaches
+  `1e−10` at `N = 70,711`, on 203,772 bits. Those depend on `N` alone, and were
+  recomputed 2026-09-17 in integers from the partial sum and the tail bracket.
+  Every enclosure up to there is inside the experiments project's 250,000-bit
+  rule, so only the 10 s rule can stop a walk short of it, and where that fires
+  is a property of the machine: one walk on this bench, 2026-09-05, under load
+  nobody recorded, stopped on it at `N = 12,951`. Steps and seconds are proxies
+  for the denominator; bits is the thing itself, which is why the experiments
+  project has a bit-length stop rule.
 
 - **What a falsification test may claim differs by provider, and the tests say
   which.** The central-binomial bound is tight enough that a *tenth* of it is
