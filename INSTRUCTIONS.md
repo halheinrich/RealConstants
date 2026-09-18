@@ -248,12 +248,19 @@ out leaves an integral that evaluates exactly, to
 `(|B_2M|/(2M)!)·(s)_(2M−1)·N^(1−s−2M)` — **the magnitude of the last term
 included**. The bound is a term already computed, and estimates nothing.
 
-**The series in M is asymptotic and turns.** At `N = 10` the realised error
-improves to about `1.0e−27` at `M = 30` and worsens to `1.8e−15` by `M = 65`.
-So a step may **not** grow M: it would report a shrinking bound over a growing
-error, which is the one failure this bench exists to make impossible. A test
-pins the turn rather than trusting the constraint, and a second pins the other
-half — growing N at fixed M never turns.
+**The series in M is asymptotic and turns, and the bound turns with it.** At
+`N = 10` and `s = 2` the realised error falls to about `1.0e−27` and rises to
+`1.8e−15` by `M = 65`. The bound is the magnitude of the last term included,
+which the derivation above proves for *every* M, so it never falls below the
+error: it bottoms at `M = 31`, at `2.05e−27`, and reaches `2.23e−15` at
+`M = 65`. Both evaluated in exact rationals from the formula, 2026-09-17.
+
+So a step may **not** grow M, and soundness is not the reason. Past the turn a
+step growing M would report a *larger* bound than the step before — still a
+true bound, but a violation of `IRealConstant`'s contract, which requires
+`ErrorBoundAt` never to increase and every refinement to strictly improve. A
+test pins the error's turn rather than trusting the constraint, and a second
+pins the other half — growing N at fixed M never turns.
 
 **A step grows N, and M is chosen rather than scheduled.** At each `N` the type
 takes the `M` minimising the proven bound. That is not a heuristic, and it makes
@@ -318,7 +325,9 @@ definition with a proven tail bracket and no identity, coefficient or
 acceleration anywhere in it. That reaches only nine or ten places, but it shares
 nothing with any fast provider, so it fixes the leading digits without the mild
 circularity of a string and a provider vouching for each other. It was a test
-fixture until this arc; a provider is its right home, and the fixture is gone.
+fixture, `ZetaThreeReference.FromDefinition`, until 2026-09-05, when `f12b9a9`
+added the provider and `0ba8f5a` retired the fixture into it; a provider is its
+right home.
 
 **The even controls are pairs, and ζ(6) is not.** `CentralBinomialZeta` and
 `EulerMaclaurinZeta` cross-check at `s = 2` and `s = 4`, which is what makes
@@ -515,11 +524,12 @@ interface-typed reference.
   because `π²/6` is the first thing anyone writes for ζ(2).
 
 - **A step may not grow Euler-Maclaurin's correction count.** That series is
-  asymptotic: at `N = 10` the error improves to about `1e−27` by `M = 30` and
-  worsens to `1.8e−15` by `M = 65`. A step growing `M` would report a shrinking
-  bound over a growing error. The step grows `N`, `M` is chosen as the bound's
-  minimiser, and a test pins the turn — the constraint is mechanical rather than
-  remembered.
+  asymptotic, and its proven bound turns with the error — the figures are in
+  § The Euler-Maclaurin bound. A step growing `M` would therefore stay sound
+  and stop improving: past the turn it reports a larger bound than the step
+  before, which `IRealConstant` forbids. The step grows `N`, `M` is chosen as
+  the bound's minimiser, and a test pins the turn — the constraint is
+  mechanical rather than remembered.
 
 - **Direct summation's ceiling is the denominator, not the term count.** In
   exact rationals the partial sum carries `lcm(1..N)`, which grows exponentially
@@ -549,21 +559,132 @@ interface-typed reference.
 
 `RealConstants.Experiments` is runnable and has no pass or fail. It follows
 `Collatz.Experiments`: `OutputType` `Exe`, `IsPackable` false, named experiments
-with `list` and `--help`, exit 2 on an unknown name.
+with `list` and `--help`. It exits 2 on an unknown name, on no name at all, and
+on a selection that does not resolve. The usage screen in `Program.cs` closes
+with commands worth running and what each is for, and `ProgramTests` puts every
+one of them through the parser.
 
-- **`compare`** walks all three zeta methods to a set of error targets, at every
-  order each reaches, and records steps, seconds, the bound attained, the
-  denominator bit-length and which stop rule fired.
-- **`step <method> <s>`** is the interactive walk — one step at a time, so the
-  algorithms can be felt rather than summarised. `Enter` takes one step, a
-  number takes that many, `r` runs to a stop rule, `q` quits.
+**All seven providers are reachable**, so `../SPEC-rational-ratio.md` § 4's
+controls can be walked by hand before `Zeta` wires them into a trend matrix:
+`step pi/machin` against `step pi/leibniz` is the cross-check pair, and
+`step sqrt:2/newton` is half the negative control.
 
-**Four stop rules, and a run reports which fired**: steps, wall-clock,
-denominator bit-length, and the user quitting. All are configurable at the top
-of `Runner.cs`. A run that stops is recorded as *what was observed* — "did not
-finish within 10 s" — never as a verdict about the method. Direct summation
-stops in most cells; that is the expected result and the reason it is in the
-table.
+- **`compare [selector ...]`** walks every selected pairing to the error targets
+  `1e-5`, `1e-10`, `1e-20` and `1e-30` and writes CSV to stdout: steps,
+  seconds, the bound attained, the realised error and its ratio to the bound,
+  the denominator bit-length, and the outcome. A pairing that stops short marks
+  each harder target *not attempted*, and one with no member at that parameter
+  — `zeta:6/central` — gets a single row carrying the provider's own refusal.
+  With no selector it walks the bench set: every method for π, √2, √3, and ζ at
+  2, 3, 4 and 6.
+- **`step <selector>`** is the interactive walk — one step at a time, so an
+  algorithm can be felt rather than summarised. The selection must come to
+  exactly one method that builds; `step zeta:3` names four, and is answered with
+  what it selected and one way to narrow it.
+
+Realised error is measured against an oracle from the constant's other method
+where it has one, so the two share no code, and from the same method taken
+deeper where it has none or where the walk is stepping the oracle's own method.
+`Catalogue.Oracle` chooses, and the walk's header says which case applies.
+
+### The selector grammar
+
+A selector is `<constant>[:<param>][/<method>]`, and both experiments take zero
+or more. Omitting `/<method>` names every method for that constant, and several
+selectors concatenate in the order given. Ruled 2026-09-06 and landed that day,
+`8f149db` to `feb20f1`, taking the suite from 239 to 263. The feature was method
+selection; the defect underneath was that `step` and `compare` parsed arguments
+differently while meaning the same things. The two-token forms it replaced —
+`step zeta:3 central`, `step central 3` — are gone with no shim: they are
+recognised and answered with the selector that means them, never accepted.
+
+**That `Selector` holds no list of constants or methods is asserted, not
+claimed.** A test walks every catalogue row, spells it, and requires the parser
+to resolve it back to that same row *by reference*:
+`SelectorTests.TheParserResolvesThroughTheCatalogueRatherThanAListOfItsOwn`. So
+neither side can go stale as providers are added, and a new provider is one
+catalogue row with no edit to the parser. Domain rules stay in the guards that
+own them: `sqrt:4/newton` parses, and fails at construction in
+`NewtonSquareRoot`'s own words.
+
+**At a terminal, a selection that does not resolve is a prompt, not an exit.**
+`Recovery` prints the diagnosis, then the grammar line — the one place a
+refusal prints it, so it appears once — and asks for a replacement at
+`selector>`; a blank line or `q` gives up. Redirected, it prints the diagnosis
+and exits 2.
+
+### The walk's keys
+
+`Enter` takes one step, and a whitespace-only line is `Enter`. A number of at
+least 1 takes that many, `r` runs to a stop rule, `h` prints the keys, the
+columns and the stop rules without taking a step, and `q` or end of input
+quits. The keys are one table, `InteractiveWalk.Keys`, read by both the header
+line and `h`.
+
+**Anything else is refused — `nothing done`, one line, state unchanged** (ruled
+and landed 2026-09-06, `856f6a0`). `0`, `-3`, `5x` and a stray paste are one
+branch with one theory, not three special cases and a fallthrough. Every
+refusal opens with `nothing done`, because *that* nothing happened is the half
+a user reads rather than infers, and it is the half separating a refusal from
+input being dropped. A refusal does not reprint the keys, since `h` exists, and
+quotes a paste back only to 30 characters. Whitespace-only advances, judged
+rather than defaulted: once submitted, a line of spaces looks exactly like an
+empty one, so refusing it would refuse a gesture the user cannot distinguish
+from the one that works.
+
+### Five stop rules, and a run reports which fired
+
+Steps (200,000), computing time (10 s), denominator bit-length (250,000 bits),
+the user quitting, and a bound finer than the oracle. The three ceilings are
+`StopRules.Default` in `Runner.cs`. The walk's clock stops while its prompt
+waits, so the time rule never counts a person thinking. A run that stops is
+recorded as *what was observed* — "did not finish within 10 s" — never as a
+verdict about the method. Direct summation and the Gregory-Leibniz series stop
+in most of `compare`'s cells; that is the expected result and the reason both
+are in the table.
+
+**The fifth rule: the bound is finer than the oracle** (landed 2026-09-06,
+`b00d896`). Running to a stop rule used to print thousands of rows whose two
+most informative columns read `past oracle` and `-`. `zeta:3/central` went 4071
+steps before the 10 s rule stopped it — the comment at the rule records another
+run reaching 4565, since the count is whatever 10 s allows — and it now stops
+at 180, in 0.03 s as measured that day; the 180 was re-measured 2026-09-17. The
+message names its own remedy: raise the constant's oracle depth in
+`Catalogue.Constants`. `compare` keeps the concept without the rule: a cell
+finer than its oracle reads `past oracle` in both realised columns, and the row
+goes on.
+
+**A reading hazard survives it, flagged rather than papered over.** `realised`
+is `|value − oracle|` widened by the oracle's own half-width, so approaching the
+oracle the second term takes over and the ratio *climbs*: `pi/machin` reads
+1.039 on the row before it stops, re-measured 2026-09-17. That is still an upper
+bound on the share of the bound used, which is what the column claims, but it
+reads like a violated bound in the column a reader trusts most. Cutting earlier
+would mean inventing a margin, and none was: a margin nobody can derive is a
+number that would need defending later.
+
+### What the columns print, and in what
+
+**Six decimal places on `compare`'s `ratio` column, and only there** (ruled by
+the session and ratified by the umbrella, 2026-09-06, `33ca3fa`). At three,
+direct summation's whole column read `0.000`, which looks like a defect and
+hides exactly what the column exists to distinguish — a loose bound from a slow
+method. The walk's ratio stays at three, where a value near 0.9 is the
+interesting case: `MethodComparison.RatioPlaces` against `Presentation.Ratio`'s
+default.
+
+**Each catalogue row's cadence names the test that measures it** (ruled
+2026-09-06, implemented 2026-09-17 under halheinrich/Math#71), e.g. "about 1.4
+decimal digits per step (measured by `MachinPiTests.…`)". A named test is a
+basis a reader can run, and a bare number is not. Nothing asserts that a figure
+and its test agree, since a text match settles no semantic property, and
+`CatalogueTests` says so rather than faking the coverage.
+
+**Decimals live in `Presentation.cs` and nowhere else.** `../AGENTS.md`
+§ Exactness discipline permits formatting at presentation and bans floating
+point upstream of it. The conversion is exact truncation of an exact rational in
+integers; which `double`s exist, and why none carries a value or a bound, is
+stated in that file's remarks.
 
 **Nothing here may reach the library.** Every figure the stepper prints is
 derivable from `ErrorBoundAt`, `Refinements()` and an oracle, so there is no
@@ -572,17 +693,54 @@ experiment's convenience into a ratified contract is the edit to refuse.
 Everything downstream holds the interface and never a concrete type, which is
 what keeps a comparison a comparison.
 
-**Decimals live in `Presentation.cs` and nowhere else.** § Exactness discipline
-permits formatting at presentation and bans floating point upstream of it; the
-conversion is exact truncation of an exact rational in integers, and the one
-`double` in the repository estimates a magnitude for a column heading.
+### Rejected, so it is not re-proposed
 
-**`Console.IsInputRedirected` guards the prompt**, so a piped or scripted run
-falls through to the stop rules and prints a line saying the pause was skipped.
-Both branches were exercised: under a pipe the skip path fires and runs to the
-time rule; under a real pty the interactive path fires, emits one row and blocks
-on its prompt. What is **not** exercised is the interpretation of what is typed
-— no route was found to deliver keystrokes into a pty from a scripted session.
+**Grouping `DirectSumZeta`'s terms in threes** (rejected 2026-09-06). The
+identity `1/n² + 1/(n+1)² + 1/(n+2)² = [3(n+1)⁴+1] / [n(n+1)(n+2)]²` is exact
+— one line of algebra in `m = n+1`, and checked over n = 1..1999 — and cuts
+additions 3:1. Measured that day, it bought 1.62× at N = 900 falling to
+**1.12× at N = 27,000**, because each grouped term carries a larger denominator
+and exact-rational cost is dominated by denominator growth rather than by the
+number of additions. It changes the tail not at all: ζ(2) to 30 places still
+needs about 7×10¹⁴ terms under this provider's bound, and sixty about 10³⁰.
+The reference is never optimised (`../AGENTS.md` § Exactness discipline, and
+§ The three zeta methods above), and trading trivial auditability for 1.12× is
+the wrong side of that. The identity is genuinely pretty, which is when saying
+no is worth recording.
+
+### Terminal-gated behaviour: what is tested, and the one record of a person
+
+`Console.IsInputRedirected` guards both reads — the step prompt and the
+selector prompt — so a piped or scripted run never blocks. The walk prints a
+line saying the pause was skipped and runs to a stop rule; a bad selector ends
+the run with exit 2. Both branches were exercised on 2026-09-05: under a pipe
+the skip path fired, and under a real pty the interactive path fired, emitted
+one row and blocked on its prompt. Three behaviours are reachable only at a
+terminal — the step prompt, its `h` screen, and the selector-recovery prompt —
+and no route delivers keystrokes into a pty from an agent session, so only a
+person can exercise them.
+
+**What a line means is tested; the loop that reads it is not.**
+`InteractiveWalk.Interpret` is a pure function of the typed line, split from the
+read for exactly this, and `InteractiveWalkTests` holds every key, counts,
+whitespace, end of input, and thirteen unrecognised lines walked against the
+refusal invariant. The selector diagnoses are in `SelectorTests` and
+`RecoveryTests`, the latter including the redirected give-up path. Not tested:
+the loop around `Interpret` — that `h` and a refusal return to the prompt
+without costing a refinement, and that a count is taken in full before the next
+prompt — the recovery prompt's read and retry, and the clock pausing while a
+prompt waits.
+
+**The only record of a person pressing these keys is from 2026-09-06, and it
+predates `856f6a0`.** The user verified `h`, `Enter`, a refused `0`, a count of
+`5`, `q` and the selector-recovery prompt, and saw the grammar line print once.
+That run found the one thing no test reached: `5x` advanced one step where five
+were asked for, indistinguishable in the transcript from input being dropped.
+`856f6a0` fixed it with the refusal above, so **the keyed behaviour at
+`856f6a0` and after has not been verified by a person**. Both defects that ever
+reached a push in this project lived in this gap, which is why
+`../AGENTS.md` § Submodule ↔ umbrella workflow requires a brief asking for
+terminal-gated behaviour to carry its keypress script.
 
 ## Subproject-internal next steps
 

@@ -146,9 +146,12 @@ argument rather than an observation, and a test pins the turn.
 - `RealConstants` — main library
 - `RealConstants.Tests` — xUnit tests
 - `RealConstants.Experiments` — runnable comparisons, **not** tests: they print
-  tables, have no pass or fail, and depend on wall-clock time. `compare` walks
-  every zeta method to a set of error targets and reports which stop rule fired;
-  `step <method> <s>` walks one method interactively, a step at a time.
+  tables, have no pass or fail, and depend on wall-clock time. Both take
+  selectors, `<constant>[:<param>][/<method>]`. `compare [selector ...]` walks
+  the selected methods — every one, for every constant the bench serves, when
+  none is given — to a set of error targets and reports which stop rule fired;
+  `step <selector>` walks one method interactively, a step at a time. `list`
+  prints the grammar, every method, and commands worth running.
 
 ## Building
 

@@ -18,9 +18,11 @@ namespace HalHeinrich.Numerics.Experiments;
 /// <para>
 /// The decimal conversion itself is exact truncation of an exact rational, not a floating-point
 /// division: <c>numerator * 10^places / denominator</c> in integers, with the point inserted
-/// afterwards. The <see cref="double"/> in <see cref="DecimalExponent"/> is the only one in the
-/// repository, it estimates a magnitude for a column heading, and it is never compared against
-/// anything.
+/// afterwards. The <see cref="double"/> in <see cref="DecimalExponent"/> is the only one derived
+/// from a value or a bound: it is printed in the magnitude columns, differenced for the walk's
+/// <c>gained</c>, and never compared against anything. The project's other doubles are
+/// wall-clock time - the time rule's ceiling and the stopwatch readings - which measure a run
+/// rather than a constant. The library and its tests hold none.
 /// </para>
 /// </remarks>
 internal static class Presentation

@@ -31,7 +31,7 @@ internal sealed record ConstantNote(
 /// central-binomial row cannot, because its coefficient differs per order and s = 3 alternates.
 /// </param>
 /// <param name="StepMeaning">What the step index counts.</param>
-/// <param name="Cadence">Roughly what a step buys.</param>
+/// <param name="Cadence">Roughly what a step buys, naming the test that measures it.</param>
 /// <param name="Domain">Which parameters it accepts, in prose. The provider is the authority.</param>
 /// <param name="Create">Builds the provider, throwing if the parameter is outside its domain.</param>
 internal sealed record Recipe(
@@ -86,6 +86,26 @@ internal static class Catalogue
         new("zeta", "zeta({0})", "the order s", "euler", 40, 60),
     ];
 
+    /// <summary>Attaches to a cadence figure the test that measures it.</summary>
+    /// <param name="figure">What a step buys, in prose.</param>
+    /// <param name="test">The test, as <c>Class.Method</c> in <c>RealConstants.Tests</c>.</param>
+    /// <returns>The figure, followed by its basis.</returns>
+    /// <remarks>
+    /// <para>
+    /// <c>../AGENTS.md</c> section Reliability clause (f) asks a quantitative claim to carry its
+    /// basis, and a named test is a basis a reader can run:
+    /// <c>dotnet test --filter FullyQualifiedName~&lt;name&gt;</c> takes it as printed. It is the
+    /// method's name rather than a line number because a name survives edits to the file around
+    /// it, and it is a string rather than a <c>nameof</c> because this project does not reference
+    /// the tests.
+    /// </para>
+    /// <para>
+    /// Nothing checks that the figure and the test agree. <c>CatalogueTests</c> says why that is
+    /// not decidable by matching text, and why it does not pretend otherwise.
+    /// </para>
+    /// </remarks>
+    private static string MeasuredBy(string figure, string test) => $"{figure} (measured by {test})";
+
     /// <summary>Every (constant, method) pair the bench can run.</summary>
     public static Recipe[] Recipes { get; } =
     [
@@ -93,7 +113,9 @@ internal static class Catalogue
             "the Gregory-Leibniz series",
             _ => "pi/4 = 1 - 1/3 + 1/5 - 1/7 + ...",
             "step n is the partial sum over k = 0..n",
-            "one decimal digit per tenfold increase in steps - a control, not a workhorse",
+            MeasuredBy(
+                "one decimal digit per tenfold increase in steps - a control, not a workhorse",
+                "LeibnizPiTests.ErrorBoundAt_CostsTenTimesTheStepsPerFurtherDecimalPlace"),
             "no parameter",
             _ => new LeibnizPi()),
 
@@ -101,7 +123,9 @@ internal static class Catalogue
             "Machin's formula",
             _ => "pi/4 = 4*arctan(1/5) - arctan(1/239), each arctangent from its Maclaurin series",
             "step n takes terms k = 0..n of both series",
-            "about 1.4 decimal digits per step",
+            MeasuredBy(
+                "about 1.4 decimal digits per step",
+                "MachinPiTests.ErrorBoundAt_TendsToZero_AndReachesThirtyPlacesInTwentyStepsOrSo"),
             "no parameter",
             _ => new MachinPi()),
 
@@ -112,7 +136,9 @@ internal static class Catalogue
                     $"x_(n+1) = (x_n + {radicand}/x_n)/2, from x_0 = ceiling(sqrt({radicand}))")
                 : "x_(n+1) = (x_n + c/x_n)/2, from x_0 = ceiling(sqrt(c))",
             "step n is the iterate x_n",
-            "quadratic - each step roughly squares the accuracy",
+            MeasuredBy(
+                "quadratic - each step roughly squares the accuracy",
+                "NewtonSquareRootTests.ErrorBoundAt_TendsToZero_AndQuadrupleTheAccuracyCostsOneMoreStep"),
             "any non-square integer of at least 2",
             radicand => new NewtonSquareRoot(radicand)),
 
@@ -126,7 +152,9 @@ internal static class Catalogue
                 _ => "zeta(s) = c_s * sum over k >= 1 of (+/-) 1/(k^s * C(2k,k)), c_s = 3, 5/2, 36/17",
             },
             "step n is the partial sum over k = 1..n+1",
-            "about 0.6 decimal digits per step",
+            MeasuredBy(
+                "about 0.6 decimal digits per step",
+                "CentralBinomialZetaTests.ErrorBoundAt_TendsToZero_AtRoughlySixTenthsOfADigitPerStep"),
             "s = 2, 3 or 4",
             order => new CentralBinomialZeta(order)),
 
@@ -138,7 +166,9 @@ internal static class Catalogue
             _ => "zeta(s) = sum over k < N of k^-s + N^(1-s)/(s-1) + N^-s/2 "
                  + "+ sum over j of (B_2j/(2j)!) * (s)_(2j-1) * N^(1-s-2j)",
             "step n uses N = n+2 exact terms, the correction count chosen to minimise the bound",
-            "about 2.75 decimal digits per step",
+            MeasuredBy(
+                "about 2.75 decimal digits per step",
+                "EulerMaclaurinZetaTests.ErrorBoundAt_TendsToZero_AtRoughlyTwoAndThreeQuarterDigitsPerStep"),
             "s >= 2",
             order => new EulerMaclaurinZeta(order)),
 
@@ -146,7 +176,9 @@ internal static class Catalogue
             "Chebyshev acceleration of the alternating zeta",
             _ => "zeta(3) = (4/3)*eta(3), eta(3) recombined with the weights of T_m(2x-1)",
             "step n uses the Chebyshev polynomial of degree m = n+1",
-            "about 0.77 decimal digits per step",
+            MeasuredBy(
+                "about 0.77 decimal digits per step",
+                "BorweinZetaThreeTests.ErrorBoundAt_TendsToZero_AtRoughlyThreeQuartersOfADigitPerStep"),
             "s = 3 only",
             order => order == 3
                 ? new BorweinZetaThree()
@@ -158,8 +190,10 @@ internal static class Catalogue
             _ => "zeta(s) = sum over k >= 1 of 1/k^s, tail bracketed by "
                  + "(N+1)^(1-s)/(s-1) < tail < N^(1-s)/(s-1)",
             "step n is the partial sum over k = 1..n+1",
-            "the bound falls like N^-s, so a decimal digit costs a factor of 10^(1/s) in N "
-            + "- about 3.2x at s = 2, 1.5x at s = 6",
+            MeasuredBy(
+                "the bound falls like N^-s, so a decimal digit costs a factor of 10^(1/s) in N "
+                + "- about 3.2x at s = 2, 1.5x at s = 6",
+                "DirectSumZetaTests.ErrorBoundAt_TendsToZero_ButHopelesslySlowly"),
             "s >= 2",
             order => new DirectSumZeta(order)),
     ];

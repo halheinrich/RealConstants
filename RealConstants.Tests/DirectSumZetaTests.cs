@@ -117,15 +117,15 @@ public class DirectSumZetaTests
         IRealConstant six = new DirectSumZeta(6);
         IRealConstant four = new DirectSumZeta(4);
 
-        // The bound falls like N^-s, so a decimal digit costs a factor of ten in N for s = 2 and
-        // a tenth of that for s = 6. Asserted as step counts, which are deterministic; how long
-        // those steps take is an experiment's business, not a test's.
+        // The bound falls like N^-s, so a decimal digit costs a factor of 10^(1/s) in N - about
+        // 3.2 for s = 2 and 1.5 for s = 6. Asserted as step counts, which are deterministic; how
+        // long those steps take is an experiment's business, not a test's.
         Assert.Equal(40, six.StepFor(TenToTheMinus(10)));
         Assert.Equal(265, four.StepFor(TenToTheMinus(10)));
 
-        // Ten digits of zeta(2) would want something past a hundred thousand terms, and sixty
-        // digits is out of reach at any scale. That is the honest character of the method, and
-        // the reason it is the reference rather than the workhorse.
+        // Eleven places of zeta(2) are still out of reach at a hundred thousand terms - they want
+        // about 224,000 - and sixty are out of reach at any scale. That is the honest character
+        // of the method, and the reason it is the reference rather than the workhorse.
         Assert.True(new DirectSumZeta(2).ErrorBoundAt(100_000) > TenToTheMinus(11));
     }
 

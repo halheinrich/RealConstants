@@ -50,11 +50,15 @@ namespace HalHeinrich.Numerics;
 /// </para>
 /// <para>
 /// <b>The series in M is asymptotic and turns.</b> The terms fall, reach a smallest value near
-/// <c>M = pi*N</c>, and then grow without limit - measured at <c>N = 10</c>, the realised error
-/// improves to about <c>1.0e-27</c> at <c>M = 30</c> and then worsens to <c>1.8e-15</c> by
-/// <c>M = 65</c>. <b>So a step may not grow M.</b> A step that did would report a shrinking
-/// bound over a growing error, which is the one failure this bench exists to make impossible.
-/// A test pins the turn rather than leaving the constraint to be remembered.
+/// <c>M = pi*N</c>, and then grow without limit - measured at <c>N = 10</c> and <c>s = 2</c>, the
+/// realised error improves to about <c>1.0e-27</c> at <c>M = 30</c> and then worsens to
+/// <c>1.8e-15</c> by <c>M = 65</c>. <b>So a step may not grow M</b>, though not because the bound
+/// would fail. It is the last term included, which the three steps above prove for every
+/// <c>M</c>, so it never falls below the error; past the turn it grows with it, reaching
+/// <c>2.23e-15</c> at <c>M = 65</c> there. What a step growing M would break is improvement: it
+/// would report a larger bound than the step before, and <see cref="IRealConstant"/> requires
+/// every refinement to strictly improve. A test pins the turn rather than leaving the
+/// constraint to be remembered.
 /// </para>
 /// <para>
 /// <b>A step grows N, and M is chosen rather than scheduled.</b> At each <c>N</c> this type

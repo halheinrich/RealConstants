@@ -9,11 +9,13 @@ namespace HalHeinrich.Numerics.Tests;
 /// </summary>
 /// <remarks>
 /// Its series in the correction count is asymptotic: the error falls, reaches a least value, and
-/// then grows without limit. A step that grew the correction count would report a shrinking
-/// bound over a growing error, which is the one failure this bench exists to make impossible.
-/// The turn is pinned by a test here rather than left as a remembered constraint, and it is
-/// computed from the formula in the test rather than read off the provider - the provider cannot
-/// be driven past the turn, which is the property under test.
+/// then grows without limit. The proven bound holds at every correction count and so turns with
+/// the error, which means a step that grew the correction count past the turn would report a
+/// bound larger than the step before - still sound, but no longer strictly improving, which
+/// <see cref="IRealConstant"/> requires of every refinement. The turn is pinned by a test here
+/// rather than left as a remembered constraint, and it is computed from the formula in the test
+/// rather than read off the provider - the provider cannot be driven past the turn, which is the
+/// property under test.
 /// </remarks>
 public class EulerMaclaurinZetaTests
 {
@@ -128,8 +130,8 @@ public class EulerMaclaurinZetaTests
         // Fix the exact-term count and push the correction count past its turn. The realised
         // error falls to a least value and then rises - by twelve orders of magnitude over the
         // range checked - while the naive reading of an "improving" series would say it should
-        // keep falling. This is the failure a step growing M would produce: a shrinking bound
-        // over a growing error.
+        // keep falling. The bound, proven for every M, rises with it, so a step growing M past
+        // here would report a larger bound than the step before: sound, and no longer improving.
         //
         // Computed from the formula here rather than through the provider. The provider chooses
         // the minimising correction count and cannot be driven past the turn, which is the
