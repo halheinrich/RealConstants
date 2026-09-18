@@ -39,11 +39,14 @@ namespace HalHeinrich.Numerics;
 /// <para>
 /// <b>The bound falls like <c>N^-s</c> and that is hopeless as a workhorse.</b> Sixty digits of
 /// zeta(2) would want something like <c>10^30</c> terms. Worse, in exact rational arithmetic the
-/// partial sum carries <c>lcm(1..N)</c> as its denominator, which grows exponentially in
-/// <c>N</c>: fifty thousand terms already costs a denominator of some 144 kilobits and a few
-/// seconds, to buy four digits. Those are measurements, not estimates, and the experiments
-/// project reproduces them. The provider ships anyway, because a bench whose fast methods are
-/// checked only against each other has nothing to fall back on when they disagree.
+/// partial sum's denominator divides <c>lcm(1..N)^s</c>, which grows exponentially in
+/// <c>N</c>: at fifty thousand terms of zeta(2) the value's denominator is 144,224 bits, and the
+/// bound it buys is <c>2.0e-10</c>, not quite ten places. Both are exact, not estimates -
+/// recomputed 2026-09-17 from the partial sum and the tail bracket below - and the experiments
+/// project's <c>den_bits</c> column shows the same growth. What that costs in seconds depends on
+/// the machine, and is the experiments project's to measure. The provider ships anyway, because
+/// a bench whose fast methods are checked only against each other has nothing to fall back on
+/// when they disagree.
 /// </para>
 /// <para>
 /// <b>The bound is sound but its half-width overstates the realised error, increasingly so.</b>

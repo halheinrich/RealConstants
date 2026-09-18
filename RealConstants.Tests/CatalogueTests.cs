@@ -1,3 +1,4 @@
+using System.Reflection;
 using HalHeinrich.Numerics.Experiments;
 
 namespace HalHeinrich.Numerics.Tests;
@@ -20,12 +21,18 @@ namespace HalHeinrich.Numerics.Tests;
 /// asking the provider.
 /// </para>
 /// <para>
-/// <b>What is not decidable here is the cadence.</b> "About 0.6 decimal digits per step" is a
-/// quantitative claim, and <c>../AGENTS.md</c> § Reliability clause (f) requires one to carry the
-/// basis that produced it. The bases exist - each provider has a step-count test pinning what a
-/// target costs - but tying a prose phrase to a test by assertion would be a text match, which
-/// that same clause says never settles a semantic property. So the rows cite their tests instead,
-/// and this file does not pretend to check them.
+/// <b>The cadence is half decidable, and only that half is checked.</b> "About 0.6 decimal digits
+/// per step" is a quantitative claim, and <c>../AGENTS.md</c> § Reliability clause (f) requires
+/// one to carry the basis that produced it. Each row therefore names its basis in a field of its
+/// own - a step-count test pinning what a target costs - and whether that names a test which
+/// exists, in the provider's own test class, is decidable and asserted below. A renamed or
+/// deleted test turns it red rather than leaving the row citing nothing.
+/// </para>
+/// <para>
+/// <b>Whether the test bears the figure out is not checked, and cannot be here.</b> Tying the
+/// prose figure to the test's assertions would be a text match, which that same clause says
+/// never settles a semantic property. That half stays a reader's check: run the named test and
+/// read what it pins.
 /// </para>
 /// </remarks>
 public class CatalogueTests
@@ -82,6 +89,44 @@ public class CatalogueTests
         Recipe central = Catalogue.Find("zeta", "central")!;
         Assert.Null(Catalogue.TryCreate(central, 6, out string family));
         Assert.Contains("2.02385", family, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EveryRowsCadenceNamesARunnableTestInItsProvidersTestClass()
+    {
+        // The decidable half of the cadence's citation: the name resolves, to a method the runner
+        // will actually run. Whether that test bears the figure out is the half that is not
+        // decidable here - see the remarks above.
+        Assembly tests = typeof(CatalogueTests).Assembly;
+
+        foreach (Recipe recipe in Catalogue.Recipes)
+        {
+            string row = $"{recipe.Constant}/{recipe.Method}";
+            string cited = recipe.CadenceTest;
+            int dot = cited.LastIndexOf('.');
+
+            Assert.True(dot > 0 && dot < cited.Length - 1, $"{row} cites '{cited}', which is not Class.Method");
+
+            string className = cited[..dot];
+            string methodName = cited[(dot + 1)..];
+
+            // In the provider's own test class, because a figure about one provider measured in
+            // another's tests is the likeliest way a citation is wrong while still resolving -
+            // a name pasted from the neighbouring row.
+            Assert.Equal(recipe.Provider + "Tests", className);
+
+            Type? type = tests.GetType($"{typeof(CatalogueTests).Namespace}.{className}");
+            Assert.True(type is not null, $"{row} cites class {className}, which the test assembly does not hold");
+
+            MethodInfo? method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance);
+            Assert.True(method is not null, $"{row} cites {cited}, which does not exist");
+
+            // A test, and one that runs: a skipped test is no basis for anything. Theory derives
+            // from Fact, so this admits both.
+            FactAttribute? fact = method.GetCustomAttribute<FactAttribute>(inherit: true);
+            Assert.True(fact is not null, $"{row} cites {cited}, which is not a test");
+            Assert.True(fact.Skip is null, $"{row} cites {cited}, which is skipped");
+        }
     }
 
     [Fact]

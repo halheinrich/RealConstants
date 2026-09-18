@@ -42,10 +42,10 @@ internal enum StopReason
 /// </para>
 /// <para>
 /// The size rule is the one that matters most and the one an eye would miss. In exact rational
-/// arithmetic a partial sum over <c>k &lt; N</c> carries something like <c>lcm(1..N)</c> as its
-/// denominator, which grows exponentially in <c>N</c>: fifty thousand terms is already a
-/// denominator of some 144 kilobits. Time and steps are proxies for that; bits is the thing
-/// itself.
+/// arithmetic a partial sum of <c>1/k^s</c> over <c>k &lt; N</c> carries a denominator dividing
+/// <c>lcm(1..N)^s</c>, which grows exponentially in <c>N</c>: fifty thousand terms of zeta(2) is
+/// already a denominator of some 144 kilobits. Time and steps are proxies for that; bits is the
+/// thing itself.
 /// </para>
 /// </remarks>
 internal sealed record StopRules(int MaxSteps, double MaxSeconds, long MaxDenominatorBits)
@@ -123,6 +123,35 @@ internal static class Runner
 
         throw new InvalidOperationException("Refinements() ended, which the contract forbids.");
     }
+
+    /// <summary>The realised error of an enclosure, as far as an oracle can resolve it.</summary>
+    /// <param name="reached">The enclosure being measured.</param>
+    /// <param name="oracle">An enclosure of the same constant, meant to be far finer.</param>
+    /// <returns>
+    /// <c>|value - oracle| + the oracle's half-width</c>, the largest the error could be; or
+    /// <see langword="null"/> when <paramref name="reached"/> is at least as fine as the oracle.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <b>One rule, read by both experiments.</b> Past the oracle the first term is swamped by the
+    /// second, so the figure settles at the oracle's half-width and its ratio to the claimed bound
+    /// climbs past one - reading exactly like a violated bound, in the column a reader trusts
+    /// most. No figure is better than that one. The walk and <c>compare</c> each tested for this
+    /// separately until 2026-09-17; here it is decided once, and the walk's fifth stop rule is
+    /// this returning <see langword="null"/>.
+    /// </para>
+    /// <para>
+    /// <b>How each renders it differs, deliberately.</b> Both print
+    /// <see cref="Presentation.PastOracle"/> where the realised error would go. For the ratio the
+    /// walk prints <c>-</c>, beside that phrase on the same row, so the reason is already on
+    /// screen; <c>compare</c>'s CSV repeats the phrase, because in that file <c>-</c> already
+    /// means a target not attempted or a pairing that would not build.
+    /// </para>
+    /// </remarks>
+    public static BigRational? Realised(Approximation reached, Approximation oracle) =>
+        reached.MaxError > oracle.MaxError
+            ? BigRational.Abs(reached.Value - oracle.Value) + oracle.MaxError
+            : null;
 
     /// <summary>The bit-length of the larger of the two denominators an enclosure carries.</summary>
     /// <param name="enclosure">The enclosure.</param>

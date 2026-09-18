@@ -532,11 +532,11 @@ interface-typed reference.
   mechanical rather than remembered.
 
 - **Direct summation's ceiling is the denominator, not the term count.** In
-  exact rationals the partial sum carries `lcm(1..N)`, which grows exponentially
-  in `N`. Measured: ζ(2) reaches about `1e−8` in 12951 steps and 37 kilobits
-  before ten seconds are up, and never gets near `1e−10`. Steps and seconds are
-  proxies for that; bits is the thing itself, which is why the experiments
-  project has a bit-length stop rule.
+  exact rationals the partial sum's denominator divides `lcm(1..N)^s`, which
+  grows exponentially in `N`. Measured: ζ(2) reaches about `1e−8` in 12951
+  steps and 37 kilobits before ten seconds are up, and never gets near `1e−10`.
+  Steps and seconds are proxies for that; bits is the thing itself, which is why
+  the experiments project has a bit-length stop rule.
 
 - **What a falsification test may claim differs by provider, and the tests say
   which.** The central-binomial bound is tight enough that a *tenth* of it is
@@ -652,7 +652,8 @@ at 180, in 0.03 s as measured that day; the 180 was re-measured 2026-09-17. The
 message names its own remedy: raise the constant's oracle depth in
 `Catalogue.Constants`. `compare` keeps the concept without the rule: a cell
 finer than its oracle reads `past oracle` in both realised columns, and the row
-goes on.
+goes on. Both experiments decide it through one method, `Runner.Realised`, whose
+remarks also say why the CSV repeats the phrase where the walk prints `-`.
 
 **A reading hazard survives it, flagged rather than papered over.** `realised`
 is `|value − oracle|` widened by the oracle's own half-width, so approaching the
@@ -673,12 +674,15 @@ method. The walk's ratio stays at three, where a value near 0.9 is the
 interesting case: `MethodComparison.RatioPlaces` against `Presentation.Ratio`'s
 default.
 
-**Each catalogue row's cadence names the test that measures it** (ruled
-2026-09-06, implemented 2026-09-17 under halheinrich/Math#71), e.g. "about 1.4
-decimal digits per step (measured by `MachinPiTests.…`)". A named test is a
-basis a reader can run, and a bare number is not. Nothing asserts that a figure
-and its test agree, since a text match settles no semantic property, and
-`CatalogueTests` says so rather than faking the coverage.
+**Each catalogue row names the test that measures its cadence** (ruled
+2026-09-06, implemented 2026-09-17 under halheinrich/Math#71), in a field of its
+own, `Recipe.CadenceTest`. `list` prints it beneath the figure; the walk's
+header shows the figure alone. A named test is a basis a reader can run, and a
+bare number is not. `CatalogueTests` asserts the decidable half — every row
+names a runnable test in its provider's own test class, so a renamed test turns
+it red. The other half, whether that test bears the figure out, would need a
+text match, which settles no semantic property, and the file says so rather
+than faking the coverage.
 
 **Decimals live in `Presentation.cs` and nowhere else.** `../AGENTS.md`
 § Exactness discipline permits formatting at presentation and bans floating
@@ -708,7 +712,7 @@ The reference is never optimised (`../AGENTS.md` § Exactness discipline, and
 the wrong side of that. The identity is genuinely pretty, which is when saying
 no is worth recording.
 
-### Terminal-gated behaviour: what is tested, and the one record of a person
+### Terminal-gated behaviour: what is tested, and what a person has seen
 
 `Console.IsInputRedirected` guards both reads — the step prompt and the
 selector prompt — so a piped or scripted run never blocks. The walk prints a
@@ -729,18 +733,52 @@ refusal invariant. The selector diagnoses are in `SelectorTests` and
 the loop around `Interpret` — that `h` and a refusal return to the prompt
 without costing a refinement, and that a count is taken in full before the next
 prompt — the recovery prompt's read and retry, and the clock pausing while a
-prompt waits.
+prompt waits. A person has since seen most of that work, below, but a keyed run
+is a record and not a regression test: nothing reddens if it later breaks.
 
-**The only record of a person pressing these keys is from 2026-09-06, and it
-predates `856f6a0`.** The user verified `h`, `Enter`, a refused `0`, a count of
-`5`, `q` and the selector-recovery prompt, and saw the grammar line print once.
-That run found the one thing no test reached: `5x` advanced one step where five
-were asked for, indistinguishable in the transcript from input being dropped.
-`856f6a0` fixed it with the refusal above, so **the keyed behaviour at
-`856f6a0` and after has not been verified by a person**. Both defects that ever
-reached a push in this project lived in this gap, which is why
-`../AGENTS.md` § Submodule ↔ umbrella workflow requires a brief asking for
-terminal-gated behaviour to carry its keypress script.
+**A person at the keys, 2026-09-06, before `856f6a0`.** The user verified `h`,
+`Enter`, a refused `0`, a count of `5`, `q` and the selector-recovery prompt,
+and saw the grammar line print once. That run found the one thing no test
+reached: `5x` advanced one step where five were asked for, indistinguishable in
+the transcript from input being dropped. `856f6a0` fixed it with the refusal
+above.
+
+**A person at the keys, 2026-09-17, at `9ce93af`** — three runs, the umbrella
+reading the transcripts.
+
+- `step central 3` named the retired form, gave `zeta:3/central`, printed the
+  grammar line once and opened the recovery prompt; typing that selector
+  started the walk.
+- `h` printed keys, columns and stop rules, and the next `Enter` gave row 1, so
+  `h` cost no step.
+- `0` and `5x` were each refused with `nothing done` and no row — `856f6a0`'s
+  fix, seen by a person for the first time.
+- A line of spaces, then `Enter`, gave row 2. A transcript cannot show spaces,
+  so that whitespace-only advances rests on the user's own report of typing
+  them.
+- `5` gave rows 3 to 7 before the next prompt.
+- `q` stopped after 8 steps, "stopped by the user", with the computing clock
+  reading far below the time including the pause: the pause exclusion, seen
+  working. The figures are not recorded, having been taken under load.
+- `step zeta:3/nope` was refused with "no method 'nope' for zeta" and zeta's
+  methods listed, then the recovery prompt, retried twice: `central` drew "is
+  a method, not a constant" with `zeta:2/central` suggested, and `try …` drew
+  "no constant named 'try'" listing pi, sqrt and zeta. Each retry reprinted
+  the grammar line and the prompt. A blank line gave up, and the exit code
+  read 2.
+- `step zeta:3/central`, then `r`, ran without pausing to "stopped after 180
+  steps", rows 0 to 179, the message naming the oracle-depth remedy — the fifth
+  rule, seen by a person — with the pause again excluded from the computing
+  clock.
+
+Not pressed: `q` at the recovery prompt, where a blank line was used instead.
+The `r` run found a defect: the stopping row read `-` under the ratio, as the
+render has always printed it, while the `h` screen said the ratio reads
+`past oracle`. That text was wrong from its first version, `67f4182` on
+2026-09-05, and was pushed; it now describes the output. Both defects that had
+reached a push in this project by 2026-09-06 lived in this gap, and so did this
+third, which is why `../AGENTS.md` § Submodule ↔ umbrella workflow requires a
+brief asking for terminal-gated behaviour to carry its keypress script.
 
 ## Subproject-internal next steps
 

@@ -147,6 +147,7 @@ internal static class Program
                 Console.Error.WriteLine($"                identity   {recipe.Identity(0)}");
                 Console.Error.WriteLine($"                step       {recipe.StepMeaning}");
                 Console.Error.WriteLine($"                cadence    {recipe.Cadence}");
+                Console.Error.WriteLine($"                tested by  {recipe.CadenceTest}");
             }
 
             Console.Error.WriteLine();
@@ -157,7 +158,8 @@ internal static class Program
         Console.Error.WriteLine("  pi                cross-check pair - leibniz and machin share no code, so");
         Console.Error.WriteLine("                    their enclosures overlapping is evidence about both");
         Console.Error.WriteLine("  sqrt:2, sqrt:3    the negative control - two irrationals whose ratio is");
-        Console.Error.WriteLine("                    irrational, so every row of a trend matrix must plateau");
+        Console.Error.WriteLine("                    irrational, so each iteration's enclosure must exclude the");
+        Console.Error.WriteLine("                    previous iteration's simplest candidate");
         Console.Error.WriteLine("  zeta:2, :4, :6    positive controls - pi^2/zeta(2) = 6, pi^4/zeta(4) = 90,");
         Console.Error.WriteLine("                    pi^6/zeta(6) = 945. No method here reaches zeta(s)");
         Console.Error.WriteLine("                    through pi, which is what stops those being tautologies");

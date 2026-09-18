@@ -152,21 +152,17 @@ internal static class InteractiveWalk
             Approximation refinement = refinements.Current;
             TimeSpan stepCost = perStep.Elapsed;
 
-            // The realised error is only known to within the oracle's own half-width, so it is
-            // reported as the largest it could be. Once the walk is finer than the oracle that
-            // number stops meaning anything - it would settle at the oracle's half-width and the
-            // ratio would climb past one, reading exactly like a violated bound - so both
-            // columns say so instead of printing a figure that invites the wrong conclusion.
-            bool resolved = refinement.MaxError > oracle.MaxError;
-            BigRational realised = BigRational.Abs(refinement.Value - oracle.Value) + oracle.MaxError;
+            // Null once the walk is finer than its oracle; Runner.Realised says why no figure is
+            // shown then, and why the ratio reads "-" here where compare repeats the phrase.
+            BigRational? realised = Runner.Realised(refinement, oracle);
 
             double digits = -Presentation.DecimalExponent(refinement.MaxError);
 
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"{step} | {Presentation.Earned(refinement, ValuePlaces)} | " +
                 $"{Presentation.Magnitude(refinement.MaxError)} | " +
-                $"{(resolved ? Presentation.Magnitude(realised) : "past oracle")} | " +
-                $"{(resolved ? Presentation.Ratio(realised, refinement.MaxError) : "-")} | " +
+                $"{(realised is { } error ? Presentation.Magnitude(error) : Presentation.PastOracle)} | " +
+                $"{(realised is { } share ? Presentation.Ratio(share, refinement.MaxError) : "-")} | " +
                 $"{digits - previousDigits:F2} | {Runner.DenominatorBits(refinement)} | " +
                 $"{stepCost.TotalMicroseconds:F0}"));
 
@@ -174,11 +170,12 @@ internal static class InteractiveWalk
             step++;
 
             // The fifth stop rule, and the one this walk hits first on a converging method. Past
-            // here every remaining column is fixed: realised and its ratio read "past oracle", and
-            // the value column has already reached its cap, so the rows are identical and endless.
-            // A run of zeta:3/central produced them to step 4565 before this existed. Nothing was
-            // wrong with any of them; there was just nothing left to read.
-            if (!resolved)
+            // here the columns a reader walks for are fixed: realised reads "past oracle", its
+            // ratio "-", and the value column has already reached its cap, so only the bound and
+            // the costs move, endlessly. A run of zeta:3/central produced such rows to step 4565
+            // before this existed. Nothing was wrong with any of them; there was just nothing left
+            // to read.
+            if (realised is null)
             {
                 reason = StopReason.OracleLimit;
                 break;
@@ -473,8 +470,9 @@ internal static class InteractiveWalk
         }
 
         Console.Error.WriteLine();
-        Console.Error.WriteLine("    realised and its ratio read \"past oracle\" on the last row of a walk that");
-        Console.Error.WriteLine("    outran its oracle, because from there the oracle cannot resolve the error");
+        Console.Error.WriteLine(
+            $"    realised reads \"{Presentation.PastOracle}\" and its ratio \"-\" on the last row of a walk");
+        Console.Error.WriteLine("    that outran its oracle, because from there the oracle cannot resolve the error");
         Console.Error.WriteLine();
         Console.Error.WriteLine("    a single us reading is noisy at this scale - read the trend, not the row");
         Console.Error.WriteLine();

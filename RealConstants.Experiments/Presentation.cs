@@ -27,6 +27,12 @@ namespace HalHeinrich.Numerics.Experiments;
 /// </remarks>
 internal static class Presentation
 {
+    /// <summary>
+    /// What a realised-error cell says when the oracle cannot resolve it - see
+    /// <see cref="Runner.Realised"/>.
+    /// </summary>
+    public const string PastOracle = "past oracle";
+
     /// <summary>Renders an exact rational to a fixed number of decimal places, truncated.</summary>
     /// <param name="value">The value.</param>
     /// <param name="places">How many places to show.</param>

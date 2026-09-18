@@ -97,20 +97,17 @@ internal static class MethodComparison
     /// whether the target was met.
     /// </para>
     /// <para>
-    /// Where the walk is finer than the oracle the two fields say so instead. From there
-    /// |value - oracle| settles at the oracle's own half-width and the ratio climbs past one,
-    /// which reads exactly like a violated bound - a number that cannot be supported, in the
-    /// column a reader trusts most.
+    /// Where the walk is finer than the oracle both fields say so instead, for the reasons
+    /// <see cref="Runner.Realised"/> gives - including why this file repeats the phrase in the
+    /// ratio field where the walk prints a dash.
     /// </para>
     /// </remarks>
     private static string Realised(Approximation reached, Approximation oracle)
     {
-        if (reached.MaxError <= oracle.MaxError)
+        if (Runner.Realised(reached, oracle) is not { } realised)
         {
-            return "past oracle,past oracle";
+            return $"{Presentation.PastOracle},{Presentation.PastOracle}";
         }
-
-        BigRational realised = BigRational.Abs(reached.Value - oracle.Value) + oracle.MaxError;
 
         return string.Create(CultureInfo.InvariantCulture,
             $"{Presentation.Exponent(realised)},{Presentation.Ratio(realised, reached.MaxError, RatioPlaces)}");
